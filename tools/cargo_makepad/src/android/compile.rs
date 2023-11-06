@@ -304,6 +304,16 @@ fn add_rust_library(sdk_dir: &Path, underscore_target: &str, build_paths: &Build
             (build_paths.dst_unaligned_apk.to_str().unwrap()),
             &binary_path,
         ]) ?;
+        let wasmedge_dir = std::env::var("WASMEDGE_DIR").unwrap_or("".to_string());
+        let src_lib2: PathBuf=Path::new(&wasmedge_dir).join("lib/libwasmedge.so");
+        let binary_path =format!("lib/{abi}/libwasmedge.so");
+        let dst_lib = build_paths.out_dir.join(binary_path.clone());
+        cp(&src_lib2, &dst_lib, false) ?;
+        shell_env_cap(&[], &build_paths.out_dir, sdk_dir.join("android-13/aapt").to_str().unwrap(), &[
+            "add",
+            (build_paths.dst_unaligned_apk.to_str().unwrap()),
+            &binary_path,
+        ]) ?;
     }
 
     Ok(())
