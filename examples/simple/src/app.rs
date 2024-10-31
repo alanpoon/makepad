@@ -1,9 +1,10 @@
 
 use makepad_widgets::*;
-
+use crate::event_reaction::*;
 live_design!{
     import makepad_widgets::base::*;
     import makepad_widgets::theme_desktop_dark::*;
+    import makepad_example_simple::event_reaction::ReactionList;
     App = {{App}} {
         ui: <Root>{
             main_window = <Window>{
@@ -30,6 +31,27 @@ live_design!{
                         text: "This is a label",
                         width: 200.0,
                     }
+                    reaction_list = <ReactionList> {
+                        width: 400
+                        // item: <RoundedView> {
+                        //     cursor: Hand
+                        //     width: Fit,
+                        //     text_label = <Label> {
+                        //         draw_text: {
+                        //             color: #f
+                        //         },
+                        //         text: "This is a label2",
+                        //         width: 200.0,
+                        //     }
+                        // }
+                        item: <Button> {
+                            draw_text: {
+                                color: #f
+                            },
+                            text: "This is a label2",
+                            width: 200.0,
+                        }
+                    }
                 }
             }
         }
@@ -45,6 +67,7 @@ pub struct App {
 impl LiveRegister for App {
     fn live_register(cx: &mut Cx) {
         crate::makepad_widgets::live_design(cx);
+        crate::event_reaction::live_design(cx);
     }
 }
 impl MatchEvent for App{
@@ -54,6 +77,7 @@ impl MatchEvent for App{
             let mut text_input = text_input.borrow_mut().unwrap();
             text_input.draw_text.text_style.is_secret = !text_input.draw_text.text_style.is_secret;
             text_input.redraw(cx);
+            //self.ui.reaction_list(id!(reaction_list)).set_list(vec![(String::from("qq"),2),(String::from("ww"),3)],"v");
         }
     }
 }
