@@ -32,7 +32,7 @@ live_design!{
                         width: 200.0,
                     }
                     reaction_list = <ReactionList> {
-                        width: 400
+                        width: Fill
                         // item: <RoundedView> {
                         //     cursor: Hand
                         //     width: Fit,
@@ -49,7 +49,7 @@ live_design!{
                                 color: #f
                             },
                             text: "This is a label2",
-                            width: 200.0,
+                            width: Fit,
                         }
                     }
                 }
