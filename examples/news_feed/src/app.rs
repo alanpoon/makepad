@@ -629,7 +629,7 @@ live_design!{
                         width: Fit,
                         margin: 0.,
                         draw_text: { color: (COLOR_USER) }
-                        text: "John Doe"
+                        text: "😊"
                     }
                     <P> {
                         text: "13h",

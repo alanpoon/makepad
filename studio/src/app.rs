@@ -63,7 +63,7 @@ impl App {
     
     pub fn open_code_file_by_path(&mut self, cx: &mut Cx, path: &str) {
         if let Some(file_id) = self.data.file_system.path_to_file_node_id(&path) {
-            let dock = self.ui.dock(id!(dock));            
+            let dock = self.ui.dock(id!(dock));
             let tab_id = dock.unique_tab_id(file_id.0);
             self.data.file_system.request_open_file(tab_id, file_id);
             let (tab_bar, pos) = dock.find_tab_bar_of_tab(live_id!(edit_first)).unwrap();
@@ -83,9 +83,10 @@ impl App {
                     self.data.build_manager.stop_all_active_builds(cx);
                     // Now we need to apply the saved state
                     let dock = self.ui.dock(id!(dock));
+                    println!("LOAD STATE {:?}",state.dock_items);
                     if let Some(mut dock) = dock.borrow_mut() {
                         dock.load_state(cx, state.dock_items);
-                                                
+                        
                         self.data.file_system.tab_id_to_file_node_id = state.tab_id_to_file_node_id.clone();
                         for (tab_id, file_node_id) in state.tab_id_to_file_node_id.iter() {
                             self.data.file_system.request_open_file(*tab_id, *file_node_id);

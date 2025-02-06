@@ -6,6 +6,7 @@ live_design!{
     use link::shaders::*;
     use link::widgets::*;
     
+
     App = {{App}} {
         ui: <Root>{
             main_window = <Window>{
@@ -28,13 +29,12 @@ live_design!{
                             return mix(color1, color2, radius);
                         }
                     }
-                    button1 = <Button> {
-                        text: "Click me 123"
-                        draw_text:{color:#fff}
-                    }
-                    button2 = <Button> {
-                        text: "Click me 345"
-                        draw_text:{color:#fff}
+                    label1 = <Label> {
+                        draw_text: {
+                            color: #f
+                        },
+                        text: "😊",
+                        width: 200.0,
                     }
                 }
             }

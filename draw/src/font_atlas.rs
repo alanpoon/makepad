@@ -32,7 +32,11 @@ pub use {
     makepad_vector::ttf_parser::GlyphId,
     unicode_segmentation::UnicodeSegmentation
 };
-
+#[derive(Clone)]
+pub enum ColorGlyph{
+    Bitmap(Vec<u8>),
+    Outline(Vec<u8>),
+}
 pub(crate) const ATLAS_WIDTH: usize = 4096;
 pub(crate) const ATLAS_HEIGHT: usize = 4096;
 
@@ -42,6 +46,7 @@ pub struct CxFontAtlas {
     pub font_id_to_path: HashMap<usize, Rc<str>>,
     pub texture_sdf: Texture,
     pub texture_svg: Texture,
+    pub texture_color: Texture, // New texture for color emoji
     pub clear_buffer: bool,
     pub alloc: CxFontsAtlasAlloc,
     pub font_cache: Option<FontCache>,
@@ -389,8 +394,20 @@ pub struct GlyphInfo {
     pub font_id: usize,
     pub glyph_id: usize,
     pub cluster: usize,
+    //pub color: Option<ColorGlyphInfo>,
 }
 
+#[derive(Clone)]
+pub struct ColorGlyphInfo {
+    pub format: GlyphFormat,
+    pub data: ColorGlyph,
+}
+// Add texture format for color emoji
+#[derive(Clone)]
+pub enum GlyphFormat {
+    Sdf,
+    ColorBitmap,
+}
 trait ShapeKey {
     fn direction(&self) -> Direction;
     fn text(&self) -> &str;
@@ -473,13 +490,14 @@ pub struct CxFontsAtlasSdfConfig {
 }
 
 impl CxFontAtlas {
-    pub fn new(texture_sdf: Texture, texture_svg: Texture, os_type: &OsType) -> Self {
+    pub fn new(texture_sdf: Texture, texture_svg: Texture, texture_color: Texture, os_type: &OsType) -> Self {
         Self {
             fonts: Vec::new(),
             path_to_font_id: HashMap::new(),
             font_id_to_path: HashMap::new(),
             texture_sdf,
             texture_svg,
+            texture_color,
             clear_buffer: false,
             alloc: CxFontsAtlasAlloc {
                 full: false,
@@ -656,8 +674,13 @@ impl<'a> Cx2d<'a> {
                 data: Some(vec![]),
                 updated: TextureUpdated::Full,
             });
-
-            let fonts_atlas = CxFontAtlas::new(texture_sdf, texture_svg, cx.os_type());
+            let texture_color = Texture::new_with_format(cx, TextureFormat::VecBGRAu8_32 {
+                width: ATLAS_WIDTH,
+                height: ATLAS_HEIGHT,
+                data: Some(vec![]),
+                updated: TextureUpdated::Full,
+            });
+            let fonts_atlas = CxFontAtlas::new(texture_sdf, texture_svg, texture_color, cx.os_type());
             cx.set_global(CxFontsAtlasRc(Rc::new(RefCell::new(fonts_atlas))));
         }
     }
@@ -898,6 +921,7 @@ pub struct CxFont {
 }
 
 impl CxFont {
+    
     pub fn shape(&mut self, direction: Direction, string: &str) -> &GlyphBuffer {
         if !self.shape_cache.contains(direction, string) {
             let mut buffer = UnicodeBuffer::new();
@@ -1043,6 +1067,11 @@ impl CxFont {
     }
 
     pub fn glyph_id(&mut self, c: char) -> GlyphId {
+        let id = self.glyph_id(c);
+        let color_glyph = self.owned_font_face.with_ref(|face| {
+            face.is_color_glyph(id)
+        });
+        println!("color_glyph {}", color_glyph);
         if let Some(id) = self.glyph_ids[c as usize] {
             id
         } else {
@@ -1055,8 +1084,25 @@ impl CxFont {
     }
 
     pub fn get_glyph(&mut self, c:char)->Option<&Glyph>{
+        // if c < '\u{10000}' {
+        //     let id = self.glyph_id(c);
+        //     Some(self.get_glyph_by_id(id.0 as usize).unwrap())
+        // } else {
+        //     None
+        // }
         if c < '\u{10000}' {
             let id = self.glyph_id(c);
+            let glyph = self.get_glyph_by_id(id.0 as usize).unwrap();
+            
+            // Check for color glyph
+            let color_glyph = self.owned_font_face.with_ref(|face| {
+                face.is_color_glyph(id)
+            });
+            println!("color_glypn {:?}", color_glyph);
+            // Some(GlyphInfo {
+            //     glyph,
+            //     color: color_glyph,
+            // })
             Some(self.get_glyph_by_id(id.0 as usize).unwrap())
         } else {
             None

@@ -35,6 +35,7 @@ workspace.members = [
     "examples/chatgpt",
     "examples/genai",
     "examples/slides",
+    "examples/simple_dock",
     #"examples/graph",
     #"examples/image_viewer",
     "studio",
