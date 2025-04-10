@@ -22,6 +22,7 @@ workspace.members = [
     "examples/chatgpt",
     "examples/genai",
     "examples/slides",
+    "examples/dock",
     "studio",
     "tools/cargo_makepad",
     "tools/auto_version",

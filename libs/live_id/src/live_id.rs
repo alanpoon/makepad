@@ -283,7 +283,7 @@ pub enum InternLiveId{
     No
 }
 
-pub (crate) static UNIQUE_LIVE_ID: AtomicU64 = AtomicU64::new(1);
+pub static UNIQUE_LIVE_ID: AtomicU64 = AtomicU64::new(1);
 /*
 impl Ord for LiveId {
     fn cmp(&self, other: &LiveId) -> cmp::Ordering {
