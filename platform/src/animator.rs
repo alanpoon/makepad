@@ -914,9 +914,10 @@ impl Animator {
             let live_registry_rc = cx.live_registry.clone();
             let live_registry = live_registry_rc.borrow();
             if live_registry.generation_valid(live_ptr) {
+                
                 // ok now we have to find
                 let (nodes, index) = live_registry.ptr_to_nodes_index(live_ptr);
-                
+                println!("live_ptr {:?} index {}", live_ptr, index);
                 self.init_as_needed(cx, index, nodes);
                 
                 if let Some(index) = nodes.child_by_path(index, &[state_id[0].as_instance(), state_id[1].as_instance()]) {

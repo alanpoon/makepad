@@ -57,6 +57,7 @@ impl LiveError {
 }
 
 pub fn live_eval_value(live_registry: &LiveRegistry, index: &mut usize, nodes: &[LiveNode], scope_nodes: &[LiveNode]) -> Result<LiveValue,LiveError> {
+    
     let v = &nodes[*index].value;
     Ok(match v {
         LiveValue::Str(_) |

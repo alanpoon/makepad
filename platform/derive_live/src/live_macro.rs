@@ -81,7 +81,7 @@ fn parse_value(node_start:TokenStream,  parser:&mut TokenParser, tb:&mut TokenBu
     else if let Some(class) = parser.eat_any_ident(){
         let class_id = LiveId::from_str_with_lut(&class).unwrap().0;
         // could be local class or enum
-        /*if parser.eat_double_colon_destruct(){
+        if parser.eat_double_colon_destruct(){
             let variant = parser.expect_any_ident()?;
             let variant_id = LiveId::from_str_with_lut(&variant).unwrap().0;
             // now check if we have a , eot or ( or {
@@ -90,14 +90,16 @@ fn parse_value(node_start:TokenStream,  parser:&mut TokenParser, tb:&mut TokenBu
                 tb.add("base:LiveId(").suf_u64(class_id).add("), variant:LiveId(").suf_u64(variant_id).add(")}},");
             }
             else if parser.is_brace(){
-                tb.add("LiveNode{").stream(Some(node_start.clone())).add(",value:LiveValue::NamedEnum{");
-                tb.add("base:LiveId(").suf_u64(class_id).add("), variant:LiveId(").suf_u64(variant_id).add(")}},");
+                //tb.add("LiveNode{").stream(Some(node_start.clone())).add(",value:LiveValue::NamedEnum{");
+                tb.add("LiveNode{").stream(Some(node_start.clone())).add(",value:LiveValue::NamedEnum(");
+                tb.add("LiveId(").suf_u64(variant_id).add("))},");
+                //tb.add("base:LiveId(").suf_u64(class_id).add("), variant:LiveId(").suf_u64(variant_id).add(")}},");
                 parser.open_group();
                 while !parser.eat_eot(){
                     let prop = parser.expect_any_ident()?;
                     let prop_id = LiveId::from_str_with_lut(&prop).unwrap();
                     let mut start = TokenBuilder::new();
-                    start.add("origin:LiveNodeOrigin::empty(), id:LiveId(").suf_u64(prop_id.0).add(")");
+                    start.add("origin:LiveNodeOrigin::field(), id:LiveId(").suf_u64(prop_id.0).add(")");
                     parser.expect_punct_alone(':')?;
                     parse_value(start.end(), parser, tb)?;
                     parser.eat_punct_alone(',');
@@ -119,9 +121,7 @@ fn parse_value(node_start:TokenStream,  parser:&mut TokenParser, tb:&mut TokenBu
             else{
                 return Err(error("Not a valid enum type"));
             }
-        }
-        else */
-        if parser.is_brace(){ 
+        } else if parser.is_brace(){ 
             tb.add("LiveNode{").stream(Some(node_start.clone())).add(",value:LiveValue::Clone(");
             tb.add("LiveId(").suf_u64(class_id).add("))},");
             parser.open_group();

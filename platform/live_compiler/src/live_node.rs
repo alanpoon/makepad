@@ -489,7 +489,7 @@ impl LiveValue {
             Self::Array |
             Self::Expr {..} |
             Self::TupleEnum {..} |
-            Self::NamedEnum {..} |
+            Self::NamedEnum (_) |
             Self::Object | // subnodes including this one
             Self::Clone {..} | // subnodes including this one
             Self::Class {..} | 
@@ -506,7 +506,7 @@ impl LiveValue {
     pub fn is_enum(&self) -> bool {
         matches!(self, Self::BareEnum {..} |
             Self::TupleEnum {..} |
-            Self::NamedEnum {..})
+            Self::NamedEnum (_))
     }
     
     pub fn is_array(&self) -> bool {
@@ -717,7 +717,7 @@ impl LiveValue {
             Self::Array => 21,
             Self::Expr {..} => 22,
             Self::TupleEnum {..} => 23,
-            Self::NamedEnum {..} => 24,
+            Self::NamedEnum (_) => 24,
             Self::Object => 25,
             Self::Clone {..} => 26,
             Self::Class {..} => 27,

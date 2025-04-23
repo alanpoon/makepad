@@ -130,6 +130,7 @@ impl LiveHook for PortalList {
     
     // hook the apply flow to collect our templates and apply to instanced childnodes
     fn apply_value_instance(&mut self, cx: &mut Cx, apply: &mut Apply, index: usize, nodes: &[LiveNode]) -> usize {
+        println!("index {:?}", index);
         if nodes[index].is_instance_prop() {
             if let Some(live_ptr) = apply.from.to_live_ptr(cx, index){
                 let id = nodes[index].id;

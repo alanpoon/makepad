@@ -500,7 +500,7 @@ impl<'a> LiveExpander<'a> {
                 LiveValue::Expr {..} => {panic!()},
                 LiveValue::Array |
                 LiveValue::TupleEnum {..} |
-                LiveValue::NamedEnum {..} |
+                LiveValue::NamedEnum (_) |
                 LiveValue::Object => { // lets check what we are overwriting
                     current_parent.push((out_doc.nodes[out_index].id, out_index));
                 },
