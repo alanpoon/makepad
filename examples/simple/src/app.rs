@@ -80,7 +80,8 @@ impl MatchEvent for App{
         if self.ui.button(id!(button_1)).clicked(&actions) {
             println!("click");
             self.counter += 1;
-            self.ui.robrix_popup_notification(id!(popup)).open(cx);
+            let counter_text = format!("count {:?} asdasdasdasdasd d asdasd ad asd ad ad ada d asd ad ad asd d sd",self.counter );
+            self.ui.robrix_popup_notification(id!(popup)).open(cx, Box::new(move|label_ref,cx |label_ref.set_text(cx,&counter_text)));
         }
         
     }

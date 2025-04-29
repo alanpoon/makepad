@@ -1,8 +1,7 @@
-use std::any::Any;
-use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use makepad_widgets::*;
-use makepad_widgets::Play::Forward;
+
 live_design! {
     use link::theme::*;
     use link::shaders::*;
@@ -12,7 +11,7 @@ live_design! {
     ICO_CHECK = dep("crate://self/resources/icons/checkmark.svg")
 
     Progress = <View> {
-        width: 21,
+        width: 20,
         height: Fill,
         flow: Overlay,
 
@@ -25,28 +24,28 @@ live_design! {
         }
 
         progress_bar = <RoundedView> {
-            height: 0,
+            height: Fill,
             width: Fill,
             draw_bg: {
                 color: #639b0d,
             }
         }
-        animator: {
+
+        animator: {  
             mode = {
-                default: close,
-                close = {
+                default: close_slider,
+                close_slider = {
                     redraw: true,
                     from: {all: Forward {duration: 0.0}}
                     apply: {
                         progress_bar = {
-                            height: -100,
+                            height: -25,     // height = 100 * 0.5 / self.duration
                         }
                     }
                 }
-                progress = {
+                slide_down = {
                     redraw: true,
-                    //from: {all: Forward {duration: 4.0}}
-                    from: {all: Snap}
+                    from: {all: Forward {duration: 2.5}}   // self.duratin + 0.5
                     apply: {
                         progress_bar = {
                             height: 100,
@@ -76,7 +75,7 @@ live_design! {
             icon_walk: { width: 18, height: 18 }
         }
 
-        <Label> {
+        tip_label = <Label> {
             draw_text: {
                 color: #42660a,
                 text_style: {
@@ -95,11 +94,11 @@ live_design! {
                     svg_file: (ICO_CLOSE),
                     color: #6cc328
                 }
-
+    
                 icon_walk: { width: 16, height: 16 }
             }
         }
-
+        
     }
 
     PopupDialog = <RoundedView> {
@@ -111,12 +110,7 @@ live_design! {
         draw_bg: {
             color: #d3f297,
         }
-        l = <Label> {
-            draw_text: {
-                text_style: {font_size: 9}
-            }
-            text: "dfafokak"
-        }
+
         progress = <Progress> {}
         <TipContent> {}
     }
@@ -125,8 +119,6 @@ live_design! {
         width: Fit
         height: Fit
         flow: Overlay
-        abs_pos: vec2(10.0, 10.0)
-        duration: 2.0
 
         draw_bg: {
             fn pixel(self) -> vec4 {
@@ -135,34 +127,21 @@ live_design! {
         }
 
         content: <PopupDialog> {}
-        
+        duration: 2.0,
         animator: {
             mode = {
                 default: close,
                 open = {
                     redraw: true,
-                    from: {all: Forward {duration: 2.0}}
+                    from: {all: Forward {duration: 0.5}}
                     ease: OutQuad
                     apply: {
                         abs_pos: vec2(60.0, 10.0),
-                        // This didn't work
-                        //content = { progress2 = { progress_bar = { height: -100 } } } 
-                    }
-                }
-                progress = {
-                    redraw: true,
-                    from: {all: Forward {duration: (2.0) }}
-                    ease: OutQuad
-                    apply: {
-                        abs_pos: vec2(60.0, 10.0),
-                        // This didn't work
-                        //content = { progress2 = { progress_bar = { height: 100 } } } 
-
                     }
                 }
                 close = {
                     redraw: true,
-                    from: {all: Forward {duration: 1.0}}
+                    from: {all: Forward {duration: 0.5}}
                     ease: InQuad
                     apply: {
                         abs_pos: vec2(-1000.0, 10.0),
@@ -173,14 +152,11 @@ live_design! {
     }
 }
 
-#[derive(Live, Widget, LiveHook)]
+#[derive(Live, Widget)]
 pub struct RobrixPopupNotification {
     #[live]
     #[find]
     content: View,
-
-    #[live]
-    duration: f64,
 
     #[rust(DrawList2d::new(cx))]
     draw_list: DrawList2d,
@@ -188,6 +164,8 @@ pub struct RobrixPopupNotification {
     #[redraw]
     #[live]
     draw_bg: DrawQuad,
+    #[live(2.0)]
+    duration: f64,
     #[layout]
     layout: Layout,
     #[walk]
@@ -195,41 +173,65 @@ pub struct RobrixPopupNotification {
 
     #[rust]
     animation_timer: Timer,
+    #[rust]
+    delay_timer: Timer,
     #[animator]
     animator: Animator,
-    #[rust] templates: ComponentMap<LiveId, LivePtr>,
-    #[rust] items: ComponentMap<usize, WidgetItem>,
-    #[rust] open: bool,
-}
-struct WidgetItem{
-    widget: WidgetRef,
-    template: LiveId,
+    /// If true, mutate live registry to set the animation duration directly.
+    #[rust]
+    live_apply: bool,
+    #[rust]
+    queue: VecDeque<Box<dyn Fn(LabelRef,&mut Cx)>>
 }
 
+impl LiveHook for RobrixPopupNotification {
+    fn after_apply(&mut self, cx: &mut Cx, _apply: &mut Apply, _index: usize, _nodes: &[LiveNode]) {
+        self.draw_list.redraw(cx);
+        self.live_apply = true;
+    }
+}
 
 impl Widget for RobrixPopupNotification {
-    
     fn handle_event(&mut self, cx: &mut Cx, event: &Event, scope: &mut Scope) {
+
         if self.animation_timer.is_event(event).is_some() {
             self.close(cx);
+            self.animation_timer = Timer::empty();
            
         }
-
+        if self.delay_timer.is_event(event).is_some() {
+            if let Some(closure) = self.queue.pop_front() {
+                self.open(cx, closure);
+            }
+        }
         if self.animator_handle_event(cx, event).must_redraw() {
             self.redraw(cx);
         }
-
-        if let Event::MouseDown(e) = event {
-            if self.view(id!(close_icon)).area().rect(cx).contains(e.abs) {
-                self.close(cx);
-                return;
+        let close_pane = {
+            let area = self.view(id!(close_icon)).area();
+            matches!(
+                event,
+                Event::Actions(actions) if self.button(id!(close_icon)).clicked(actions)
+            )
+            || match event.hits_with_capture_overload(cx, area, true) {
+                Hit::FingerDown(_fde) => {
+                    cx.set_key_focus(area);
+                    false
+                }
+                Hit::FingerUp(fue) if fue.is_over => {
+                    matches!(fue.mouse_button(), Some(MouseButton::PRIMARY))
+                }
+                _ => false,
             }
+        };
+        if close_pane {
+            self.close(cx);
+            return;
         }
-
         self.content.handle_event(cx, event, scope);
     }
 
-    fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, _walk: Walk) -> DrawStep {
+    fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, walk: Walk) -> DrawStep {
         self.draw_list.begin_overlay_reuse(cx);
 
         cx.begin_pass_sized_turtle(self.layout);
@@ -245,52 +247,95 @@ impl Widget for RobrixPopupNotification {
 }
 
 impl RobrixPopupNotification {
-    pub fn open(&mut self, cx: &mut Cx) {
-        self.animation_timer = cx.start_timeout(4.0);
-        self.set_duration(cx, 0.0);
-        self.view(id!(progress)).animator_play(cx, id!(mode.progress));
+    pub fn open(&mut self, cx: &mut Cx, closure: Box<dyn Fn(LabelRef,&mut Cx)>) {
+        
+        if !self.animation_timer.is_empty() {
+            self.queue.push_back(closure);
+            return;
+        }
+        closure(self.label(id!(tip_label)),cx);
+        self.animation_timer = cx.start_timeout(self.duration + 0.5);
+        if self.live_apply{
+            self.use_live_duration(cx);
+            self.live_apply = false;
+        }
+        
+        self.view(id!(progress)).animator_play(cx, id!(mode.slide_down));
         self.animator_play(cx, id!(mode.open));
         self.redraw(cx);
-        self.open = true;
     }
 
     pub fn close(&mut self, cx: &mut Cx) {
         self.animator_play(cx, id!(mode.close));
-        self.view(id!(progress)).animator_play(cx, id!(mode.close));
+        self.view(id!(progress)).animator_play(cx, id!(mode.close_slider));
+        self.delay_timer = cx.start_timeout(0.5);
         self.redraw(cx);
     }
-    pub fn set_duration(&mut self, cx:&mut Cx, duration: f64) {
-        println!("set_duration");
-        println!("{:?}",self.animator.live_ptr);
-        println!("state {:?}", self.animator.type_id());
-        for (live_file) in cx
-            .live_registry
-            .clone()
-            .borrow_mut()
-            .live_files.iter_mut() {
-                for live_node in &mut live_file.expanded.nodes {
-                    if live_node.id.to_string() == "duration" {
-                        live_node.value = LiveValue::Float64(9.0);
-                    }
+    /// Set the duration of the animation live value to the `duration` field of `self`.
+    ///
+    /// This function is called whenever the `duration` field changes, and when the
+    /// widget is first created.
+    ///
+    /// This function assumes that the `animator` field has been initialized and
+    /// that the live file contains the `slide_down` and `close_slider` nodes.
+    ///
+    /// The function does not handle the case where the live file or the nodes
+    /// do not exist, because this should not happen in normal usage.
+    fn use_live_duration(&mut self, cx: &mut Cx) {
+        let duration = self.duration;
+        let live_ptr = match self.animator.live_ptr {
+            Some(ptr) => ptr,
+            None => return,
+        };
+    
+        let LiveFileId(fi) = live_ptr.file_id;
+        let registry = cx.live_registry.clone();
+        let mut live_registry = registry.borrow_mut();
+        
+        let live_file = match live_registry.live_files.get_mut(fi as usize) {
+            Some(file) => file,
+            None => return,
+        };
+    
+        let nodes = &mut live_file.expanded.nodes;
+        
+        let (slide_down_index, close_slider_index) = nodes.iter().enumerate()
+            .fold((None, None), |(mut prog, mut close), (index, node)| {
+                if node.id == live_id!(slide_down) && !matches!(node.value, LiveValue::Close) {
+                    prog = Some(index);
                 }
+                if node.id == live_id!(close_slider) && !matches!(node.value, LiveValue::Close) {
+                    close = Some(index);
+                }
+                (prog, close)
+            });
+    
+        if let Some(index) = slide_down_index {
+            if let Some(v) = nodes.child_by_path(index, &[
+                live_id!(from).as_field(),
+                live_id!(all).as_field(), 
+                live_id!(duration).as_field()
+            ]) {
+                nodes[v].value = LiveValue::Float64(duration + 0.5);
             }
-        //println!("compone {:?}",cx.live_registry.borrow_mut().components.0.len());
-        // let mut state = self.animator.state.clone().unwrap();
-        // for child in state.iter_mut() {
-        //     if child.id.to_string() == "duration" {
-        //         child.value = LiveValue::Float64(8.0);
-        //     }
-        // }
-        // self.animator.swap_in_state(state);
+        }
+        
+        if let Some(index) = close_slider_index {
+            if let Some(v) = nodes.child_by_path(index, &[
+                live_id!(apply).as_field(),
+                live_id!(progress_bar).as_instance(), 
+                live_id!(height).as_field()
+            ]) {
+                nodes[v].value = LiveValue::Float64(-100.0 * 0.5 / duration);
+            }
+        }
     }
 }
 
 impl RobrixPopupNotificationRef {
-    pub fn open(&self, cx: &mut Cx) {
+    pub fn open(&self, cx: &mut Cx, closure: Box<dyn Fn(LabelRef,&mut Cx)>) {
         if let Some(mut inner) = self.borrow_mut() {
-            
-            inner.open(cx);
-            
+            inner.open(cx, closure);
         }
     }
 
