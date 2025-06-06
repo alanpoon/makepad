@@ -46,7 +46,7 @@ live_design!{
                         draw_text:{color:#fff}
                     }
                     popup = <RobrixPopupNotification>{
-
+                        duration: 1.0
                     }
                 }
             }
