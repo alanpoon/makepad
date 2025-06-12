@@ -271,23 +271,11 @@ impl CxWindow {
     }
     
     pub fn get_inner_size(&self) -> DVec2 {
-        if !self.is_created {
-            Default::default()
-            //panic!();
-        }
-        else {
-            self.window_geom.inner_size
-        }
+        self.window_geom.inner_size
     }
     
     pub fn get_position(&self) -> DVec2 {
-        if !self.is_created {
-            Default::default()
-            //panic!();
-        }
-        else {
-            self.window_geom.position
-        }
+        self.window_geom.position
     }
     /*
     pub fn get_dpi_factor(&mut self) -> Option<f32> {
