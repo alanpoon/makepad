@@ -1,11 +1,11 @@
 
 use makepad_widgets::*;
-
+use crate::spinner::*;
 live_design!{
     use link::theme::*;
     use link::shaders::*;
     use link::widgets::*;
-        
+    use crate::spinner::LoadingSpinner2;
     App = {{App}} {
         ui: <Root>{
             main_window = <Window>{
@@ -20,18 +20,22 @@ live_design!{
                     draw_bg:{
                         fn pixel(self) -> vec4 {
                                                         
-                            let center = vec2(0.5, 0.5);
-                            let uv = self.pos - center;
-                            let radius = length(uv);
-                            let angle = atan(uv.y, uv.x);
-                            let color1 = mix(#f00, #00f, 0.5 + 10.5 * cos(angle + self.time));
-                            let color2 = mix(#0f0, #ff0, 0.5 + 0.5 * sin(angle + self.time));
-                            let color = mix(color1, color2, radius);
-                            return depth_clip(self.world, color, self.depth_clip);
+                            // let center = vec2(0.5, 0.5);
+                            // let uv = self.pos - center;
+                            // let radius = length(uv);
+                            // let angle = atan(uv.y, uv.x);
+                            // let color1 = mix(#f00, #00f, 0.5 + 10.5 * cos(angle + self.time));
+                            // let color2 = mix(#0f0, #ff0, 0.5 + 0.5 * sin(angle + self.time));
+                            // let color = mix(color1, color2, radius);
+                            // return depth_clip(self.world, color, self.depth_clip);
+                            return vec4(1.0,1.0,1.0,1.0);
                         }
                     }
                     <Rotary>{
                         text:"Slide"
+                    }
+                    loading_spinner_2 = <LoadingSpinner2> {
+
                     }
                     button_1 = <Button> {
                         text: "Click 福 me 😊"
@@ -92,8 +96,9 @@ pub struct App {
 }
  
 impl LiveRegister for App {
-    fn live_register(cx: &mut Cx) { 
+    fn live_register(cx: &mut Cx) {
         crate::makepad_widgets::live_design(cx);
+        crate::spinner::live_design(cx);
     }
 }
 
@@ -106,6 +111,7 @@ impl MatchEvent for App{
             self.ui.button(id!(button_1)).set_text(cx, "Clicked 😀");
             log!("hi");
             self.counter += 1;
+            self.ui.loading_spinner2(id!(loading_spinner_2)).start(cx);
         }
     }
 }
