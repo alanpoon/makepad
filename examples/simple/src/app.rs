@@ -20,15 +20,15 @@ live_design!{
                     draw_bg:{
                         fn pixel(self) -> vec4 {
                                                         
-                            // let center = vec2(0.5, 0.5);
-                            // let uv = self.pos - center;
-                            // let radius = length(uv);
-                            // let angle = atan(uv.y, uv.x);
-                            // let color1 = mix(#f00, #00f, 0.5 + 10.5 * cos(angle + self.time));
-                            // let color2 = mix(#0f0, #ff0, 0.5 + 0.5 * sin(angle + self.time));
-                            // let color = mix(color1, color2, radius);
-                            // return depth_clip(self.world, color, self.depth_clip);
-                            return vec4(1.0,1.0,1.0,1.0);
+                            let center = vec2(0.5, 0.5);
+                            let uv = self.pos - center;
+                            let radius = length(uv);
+                            let angle = atan(uv.y, uv.x);
+                            let color1 = mix(#f00, #00f, 0.5 + 10.5 * cos(angle + self.time));
+                            let color2 = mix(#0f0, #ff0, 0.5 + 0.5 * sin(angle + self.time));
+                            let color = mix(color1, color2, radius);
+                            return depth_clip(self.world, color, self.depth_clip);
+                            //return vec4(1.0,1.0,1.0,1.0);
                         }
                     }
                     <Rotary>{

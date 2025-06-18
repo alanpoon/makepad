@@ -7,16 +7,16 @@ live_design!{
     pub LoadingSpinner2 = {{LoadingSpinner2}} {
         width: 40,
         height: 40,
-        duration: 1.0,
-       
         
+        show_bg: true,
         draw_bg: {
-            instance color: #FFFFFF,
+            color: #f0e6e6,
+            instance progress: 0.1,
             instance spinner_background_color: #6f6f6f,
             instance stroke_width: 4.0,
             instance gap_degrees: 60.0,
-            instance progress: 0.1
-            instance border_size: 1.0
+            
+            instance border_size: 1.0,
             fn pixel(self) -> vec4 {
                 let sdf = Sdf2d::viewport(self.pos * self.rect_size);
                 let center = self.rect_size * 0.5;
@@ -24,7 +24,7 @@ live_design!{
 
                 // Draw background circle
                 sdf.circle(center.x, center.y, radius);
-                sdf.stroke(vec4(0,0,0,0.2), self.stroke_width);
+                sdf.stroke(self.spinner_background_color, self.stroke_width);
 
                 // Draw spinner arc
                 let start_angle = self.progress * 2.0 * PI;
@@ -70,9 +70,9 @@ pub struct LoadingSpinner2 {
     #[walk] walk: Walk,
     #[layout] layout: Layout,
     #[deref] view: View,
-    #[redraw]
-    #[live]
-    draw_bg: DrawQuad,
+    // #[redraw]
+    // #[live]
+    // draw_bg: DrawQuad,
 }
 
 impl Widget for LoadingSpinner2 {
@@ -81,9 +81,10 @@ impl Widget for LoadingSpinner2 {
         self.view.handle_event(cx, event, scope);
     }
     
-    fn draw_walk(&mut self, cx: &mut Cx2d, _scope: &mut Scope, walk: Walk) -> DrawStep {
-        self.draw_bg.begin(cx, walk, self.layout);
-        self.draw_bg.end(cx);
+    fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, walk: Walk) -> DrawStep {
+        // self.draw_bg.begin(cx, walk, self.layout);
+        // self.draw_bg.end(cx);
+        self.view.draw_walk(cx, scope, walk);
         DrawStep::done()
     }
 }
