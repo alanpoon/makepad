@@ -16,6 +16,7 @@ workspace.members = [
     "examples/xr_net",
     "studio",
     "tools/cargo_makepad",
+    "examples/stack_navigation_example",
 ]
 
 workspace.exclude = [
