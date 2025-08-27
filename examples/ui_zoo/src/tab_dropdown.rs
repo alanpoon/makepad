@@ -53,20 +53,6 @@ live_design!{
             }
 
             <Hr> {}
-            <H4> { text: "DropDownFlatter" }
-            dropdown_flatter = <DropDownFlatter> {
-                labels: ["Value One", "Value Two", "Third", "Fourth Value", "Option E", "Hexagons"],
-                values: [ValueOne, ValueTwo, Third, FourthValue, OptionE, Hexagons]
-            }
-
-            <H4> { text: "DropDownFlatter, Position: BelowInput" }
-            dropdown_flatter_below = <DropDownFlatter> {
-                popup_menu_position: BelowInput,
-                labels: ["Value One", "Value Two", "Third", "Fourth Value", "Option E", "Hexagons"],
-                values: [ValueOne, ValueTwo, Third, FourthValue, OptionE, Hexagons]
-            }
-
-            <Hr> {}
             <H4> { text: "DropDownGradientX" }
             dropdown_gradient_x = <DropDownGradientX> {
                 labels: ["Value One", "Value Two", "Third", "Fourth Value", "Option E", "Hexagons"],
@@ -134,11 +120,11 @@ live_design!{
                     color_focus: (THEME_COLOR_OUTSET_FOCUS)
                     color_disabled: (THEME_COLOR_OUTSET_DISABLED)
 
-                    border_color_1: (THEME_COLOR_BEVEL_OUTSET_1)
-                    border_color_1_hover: (THEME_COLOR_BEVEL_OUTSET_1_HOVER)
-                    border_color_1_focus: (THEME_COLOR_BEVEL_OUTSET_1_FOCUS)
-                    border_color_1_down: (THEME_COLOR_BEVEL_OUTSET_1_DOWN)
-                    border_color_1_disabled: (THEME_COLOR_BEVEL_OUTSET_1_DISABLED)
+                    border_color: (THEME_COLOR_BEVEL_OUTSET_1)
+                    border_color_hover: (THEME_COLOR_BEVEL_OUTSET_1_HOVER)
+                    border_color_focus: (THEME_COLOR_BEVEL_OUTSET_1_FOCUS)
+                    border_color_down: (THEME_COLOR_BEVEL_OUTSET_1_DOWN)
+                    border_color_disabled: (THEME_COLOR_BEVEL_OUTSET_1_DISABLED)
 
                     border_color_2: (THEME_COLOR_BEVEL_OUTSET_2)
                     border_color_2_hover: (THEME_COLOR_BEVEL_OUTSET_2_HOVER)

@@ -14,6 +14,7 @@
         // use crate::tab_desktopbutton::*;
         use crate::tab_dropdown::*;
         use crate::tab_filetree::*;
+        use crate::tab_spinner::*;
         // use crate::tab_foldbutton::*;
         use crate::tab_html::*;
         use crate::tab_icon::*;
@@ -91,6 +92,7 @@
                                 // tDesktopButton,
                                 tDropDown,
                                 tFiletree,
+                                tSpinner,
                                 // tFoldButton,
                                 tHTML,
                                 tIcon,
@@ -123,6 +125,7 @@
                         // tDesktopButton = Tab { name: "DesktopButton", template: PermanentTab, kind: TabDesktopButton }
                         tDropDown = Tab { name: "DropDown & PopupMenu", template: PermanentTab, kind: TabDropDown }
                         tFiletree = Tab { name: "FileTree", template: PermanentTab, kind: TabFiletree }
+                        tSpinner = Tab { name: "Spinner", template: PermanentTab, kind: TabSpinner }
                         // tFoldButton = Tab { name: "FoldButton", template: PermanentTab, kind: TabFoldButton }
                         tHTML = Tab { name: "HTML", template: PermanentTab, kind: TabHTML }
                         tIcon = Tab { name: "Icon", template: PermanentTab, kind: TabIcon }
@@ -151,6 +154,7 @@
                         // TabDesktopButton = <UIZooTab> { <DemoDesktopButton> {} }
                         TabDropDown = <UIZooTab> { <DemoDropdown> {} }
                         TabFiletree = <UIZooTab> { <DemoFT> {} }
+                        TabSpinner = <UIZooTab> { <DemoSpinner> {} }
                         // TabFoldButton = <UIZooTab> { <DemoFoldButton> {} }
                         TabHTML = <UIZooTab> { <DemoHtml> {} }
                         TabIcon = <UIZooTab> { <DemoIcon> {} }
@@ -269,12 +273,11 @@
         #[live] fnumber: f32,
         #[live] inumber: i32,
         #[live] dropdown: DropDownEnum,
-        #[live] dropdown_customized: DropDownEnum,
         #[live] dropdown_below: DropDownEnum,
+        #[live] dropdown_disabled: DropDownEnum,
+        #[live] dropdown_customized: DropDownEnum,
         #[live] dropdown_flat: DropDownEnum,
         #[live] dropdown_flat_below: DropDownEnum,
-        #[live] dropdown_flatter: DropDownEnum,
-        #[live] dropdown_flatter_below: DropDownEnum,
         #[live] dropdown_gradient_x: DropDownEnum,
         #[live] dropdown_gradient_x_below: DropDownEnum,
         #[live] dropdown_gradient_y: DropDownEnum,
@@ -301,6 +304,7 @@ impl LiveRegister for App {
             // crate::tab_desktopbutton::live_design(cx);
             crate::tab_dropdown::live_design(cx);
             crate::tab_filetree::live_design(cx);
+            crate::tab_spinner::live_design(cx);
             // crate::tab_foldbutton::live_design(cx);
             crate::tab_html::live_design(cx);
             crate::tab_icon::live_design(cx);
@@ -461,12 +465,15 @@ impl AppMain for App {
 
 impl App{
     pub fn data_bind(mut db: DataBindingMap) {
+        db.bind(id!(dropdown), ids!(dropdown));
+        db.bind(id!(dropdown_below), ids!(dropdown_below));
         db.bind(id!(dropdown_disabled), ids!(dropdown_disabled));
-        db.bind(id!(dropdown_demo), ids!(dropdown_demo));
+        db.bind(id!(dropdown_customized), ids!(dropdown_customized));
         db.bind(id!(dropdown_flat), ids!(dropdown_flat));
-        db.bind(id!(dropdown_flatter), ids!(dropdown_flatter));
+        db.bind(id!(dropdown_flat_below), ids!(dropdown_flat_below));
         db.bind(id!(dropdown_gradient_x), ids!(dropdown_gradient_x));
+        db.bind(id!(dropdown_gradient_x_below), ids!(dropdown_gradient_x_below));
         db.bind(id!(dropdown_gradient_y), ids!(dropdown_gradient_y));
-        db.bind(id!(dropdown_custom), ids!(dropdown_custom));
+        db.bind(id!(dropdown_gradient_y_below), ids!(dropdown_gradient_y_below));
     }
 }

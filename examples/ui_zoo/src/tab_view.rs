@@ -35,7 +35,7 @@ live_design!{
 
                 <Vr> {
                     draw_bg: {
-                        color_1: #000,
+                        color: #000,
                         color_2: #fff,
                     }
                 }
@@ -43,7 +43,7 @@ live_design!{
                 <Hr> {
                     width: 25.,
                     draw_bg: {
-                        color_1: #0,
+                        color: #0,
                         color_2: #f,
                     }
                 }
@@ -167,7 +167,7 @@ live_design!{
                     align: { x: 0.5, y: 0.5 }
 
                     draw_bg: {
-                        color_1: #f00,
+                        color: #f00,
                         color_2: #f80,
                         color_dither: 2.0
                     }
@@ -181,7 +181,7 @@ live_design!{
                     align: { x: 0.5, y: 0.5 }
 
                     draw_bg: {
-                        color_1: #f00,
+                        color: #f00,
                         color_2: #f80,
                         color_dither: 2.0
                     }
