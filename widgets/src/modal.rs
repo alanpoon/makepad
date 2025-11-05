@@ -84,9 +84,7 @@ impl Widget for Modal {
         if !self.opened {
             return;
         }
-
         let area = self.draw_bg.area();
-
         // When passing down events to the inner `content` view,
         // we must temporarily suspend the sweep lock to allow the overlaid `content` View
         // to correctly respond to events/hits.
