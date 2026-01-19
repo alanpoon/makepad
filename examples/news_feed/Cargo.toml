@@ -9,3 +9,4 @@ metadata.makepad-auto-version = "xkCWN4tEEI83zaFq5OlRrr0_Q2Y="
 
 [dependencies]
 makepad-widgets = { path = "../../widgets", version = "1.0.0" }
+rangemap = "1.5"

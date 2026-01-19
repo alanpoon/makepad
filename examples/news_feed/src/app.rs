@@ -1,10 +1,15 @@
-use makepad_widgets::*;
+use std::{collections::HashMap, ops::Range};
 
+use makepad_widgets::*;
+use rangemap::RangeMap;
+use makepad_widgets::fold_header::FoldHeaderWidgetRefExt;
+use crate::view_list::ViewListWidgetRefExt;
 live_design!{
     use link::widgets::*;
     use link::theme::*;
     use link::shaders::*;
-    
+    use crate::view_list::*;
+    use crate::fold_button_with_text::*;
     IMG_A = dep("crate://self/resources/neom-THlO6Mkf5uI-unsplash.jpg")
     IMG_PROFILE_A = dep("crate://self/resources/profile_1.jpg")
     LOGO = dep("crate://self/resources/logo.svg")
@@ -23,6 +28,7 @@ live_design!{
     COLOR_TEXT_LIGHT = #xCCC
     COLOR_USER = #x444
     COLOR_DIVIDER = #x00000010
+    COLOR_HEADER_BUTTON_TEXT = #x666666
     Logo = <Button> {
         height: Fit, width: Fit,
         draw_icon: {
@@ -408,7 +414,6 @@ live_design!{
                 }
             }
         }
-
     }
 
     Menu = <View> {
@@ -882,7 +887,24 @@ live_design!{
             TopSpace = <View> {height: 0}
             Post = <CachedView>{<Post> {}}
             PostImage = <PostImage> {}
-            BottomSpace = <View> {height: 100}
+            BottomSpace = <View> {height: 100, show_bg: true, draw_bg: {color: #f}}
+            Empty = <View> { height: 0, show_bg: false}
+            FoldHeader = <FoldHeader> {
+                header: <View> {
+                    width: Fill, height: 50
+                    align: { x: 0.5, y: 0.5 }
+                    fold_button = <FoldButtonWithText> {}
+                }
+
+                body: <View> {
+                    width: Fill, height: Fit
+                    flow: Down,
+                    view_list = <ViewList> {
+                        width: Fill,
+                        content: <Post> {}
+                    }
+                }
+            }
         }
     }
 
@@ -925,41 +947,167 @@ live_design!{
 }
 
 app_main!(App);
-
-#[derive(Live, LiveHook, Widget)]
-struct NewsFeed{
-    #[deref] view:View,
+#[derive(Debug, Clone, Default)]
+struct GroupMeta {
+    key: String,
+    count: usize,
 }
 
+#[derive(Default)]
+struct GroupHeaderManager {
+    group_ranges: RangeMap<usize, String>,
+    groups_by_id: HashMap<String, GroupMeta>,
+}
+
+impl GroupHeaderManager {
+    fn new() -> Self {
+        Self {
+            group_ranges: RangeMap::new(),
+            groups_by_id: HashMap::new(),
+        }
+    }
+
+    fn check_group_header_status(&self, item_id: usize) -> Option<Range<usize>> {
+        for (range, _) in self.group_ranges.iter() {
+            if range.contains(&item_id) {
+                return Some(range.clone())
+            }
+        }
+        None
+    }
+    fn get_group_at_item_id(&self, item_id: usize) -> Option<&GroupMeta> {
+        self.group_ranges
+            .iter()
+            .find(|(range, _)| range.start == item_id)
+            .and_then(|(_, header_id)| self.groups_by_id.get(header_id))
+    }
+
+    fn compute_groups(&mut self, data: &[(String, String)]) {
+        self.group_ranges.clear();
+        let mut i = 0;
+        while i < data.len() {
+            let current_key = &data[i].0;
+            let mut count = 1;
+
+            while i + count < data.len() && &data[i + count].0 == current_key {
+                count += 1;
+            }
+
+            if count >= 3 {
+                let header_id = format!("{}_group_{}", current_key, i);
+                let start_index = i;
+                let end_index = i + count - 1;
+
+                let final_start = start_index;
+                let final_end = end_index;
+
+                self.group_ranges.insert(final_start..final_end + 1, header_id.clone());
+                self.groups_by_id.insert(
+                    header_id,
+                    GroupMeta {
+                        key: current_key.clone(),
+                        count,
+                    },
+                );
+            }
+
+            i += count;
+        }
+    }
+}
+#[derive(Live, Widget)]
+struct NewsFeed{
+    #[deref] view:View,
+    #[rust] data: Vec<(String, String)>,
+    #[rust] group_manager: GroupHeaderManager,
+}
+impl LiveHook for NewsFeed {
+    fn after_new_from_doc(&mut self, _cx: &mut Cx) {
+        self.data = vec![
+            ("A".to_string(), "At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.".to_string()),
+            ("A".to_string(), "How are you? This is a simple message.".to_string()),
+            ("A".to_string(), "Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.".to_string()),
+            ("C".to_string(), "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat.".to_string()),
+            ("D".to_string(), "The quick brown fox jumps over the lazy dog.".to_string()),
+            ("E".to_string(), "Makepad is a revolutionary UI framework written in Rust.".to_string()),
+            ("F".to_string(), "Portal lists enable efficient rendering of large data sets.".to_string()),
+            ("A".to_string(), "This is message number 8 in our news feed.".to_string()),
+            ("A".to_string(), "At vero eos et accusam et justo duo dolores et ea rebum.".to_string()),
+            ("A".to_string(), "Another interesting post in our feed!".to_string()),
+            ("D".to_string(), "Lorem ipsum dolor sit amet, consetetur sadipscing elitr.".to_string()),
+            ("E".to_string(), "Message 12: Hello from the news feed!".to_string()),
+            ("F".to_string(), "Sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat.".to_string()),
+            ("A".to_string(), "This is an example of a longer message that could appear in a social media feed.".to_string()),
+            ("A".to_string(), "Short and sweet message here.".to_string()),
+            ("A".to_string(), "At vero eos et accusam et justo duo dolores.".to_string()),
+            ("A".to_string(), "Message 17: Almost at the end of our data vector!".to_string()),
+            ("E".to_string(), "Stet clita kasd gubergren, no sea takimata sanctus.".to_string()),
+            ("F".to_string(), "Penultimate message in our 20-item news feed.".to_string()),
+            ("A".to_string(), "Final message: Thanks for scrolling through our portal list example!".to_string()),
+        ];
+        self.group_manager = GroupHeaderManager::new();
+        self.group_manager.compute_groups(&self.data);
+    }
+}
 impl Widget for NewsFeed{
     fn draw_walk(&mut self, cx:&mut Cx2d, scope:&mut Scope, walk:Walk)->DrawStep{
         while let Some(item) =  self.view.draw_walk(cx, scope, walk).step(){
             if let Some(mut list) = item.as_portal_list().borrow_mut() {
-                list.set_item_range(cx, 0, 1000);
+                let total_items = self.data.len();
+                list.set_item_range(cx, 0, total_items);
                 while let Some(item_id) = list.next_visible_item(cx) {
-                    let template = match item_id{
-                        0 => live_id!(TopSpace),
-                        x if x % 5 == 0 => live_id!(PostImage),
-                        _ => live_id!(Post)
-                    };
-                    let item = list.item(cx, item_id, template);
-                    let text = match item_id % 4 {
-                        1 => format!("At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. id: {}", item_id),
-                        2 => format!("How are you? Item id: {}", item_id),
-                        3 => format!("Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. id: {}", item_id),
-                        _ => format!("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. 4 id {}", item_id),
-                    };
-                    item.label(ids!(content.text)).set_text(cx, &text);
-                    item.button(ids!(likes)).set_text(cx, &format!("{}", item_id % 23));
-                    item.button(ids!(comments)).set_text(cx, &format!("{}", item_id % 6));
-                    item.draw_all(cx, &mut Scope::empty());
+                    let range_start = self.group_manager.check_group_header_status(item_id);
+                    if let Some(range) = range_start {
+                        if range.start == item_id {
+                            if let Some(group_meta) = self.group_manager.get_group_at_item_id(item_id) {
+                                let item = list.item(cx, item_id, live_id!(FoldHeader));
+                                item.label(ids!(summary_text)).set_text(cx,
+                                    &format!("{} ({} items)", group_meta.key, group_meta.count));
+                                let mut view_list = vec![];
+                                let range_c = range.clone();
+                                let template = item.as_fold_header().view_list(ids!(view_list)).get_content_template();
+                                for item_id in range_c.start + 1 .. range_c.end {
+                                    let Some((key, text)) = &self.data.get(item_id) else {
+                                        continue 
+                                    };
+                                    let item = View::new_from_ptr(cx, template);
+                                    item.label(ids!(content.text)).set_text(cx, &format!("{}-{}: {}", item_id, key, text));
+                                    item.button(ids!(likes)).set_text(cx, &format!("{}", item_id % 23));
+                                    item.button(ids!(comments)).set_text(cx, &format!("{}", item_id % 6));
+                                    view_list.push(item);
+                                }
+                                item.as_fold_header().view_list(ids!(view_list)).set_view_list(view_list);
+                                item.draw_all(cx, &mut Scope::empty());
+                            }
+                        } else {
+                            
+                            let item = list.item(cx, item_id, live_id!(Empty));
+                            item.draw_all(cx, &mut Scope::empty());
+                        }
+                    } else {
+                        if item_id >= self.data.len() {
+                            let item = list.item(cx, item_id, live_id!(BottomSpace));
+                            item.draw_all(cx, &mut Scope::empty());
+                            continue 
+                        }
+                        let Some((key, text)) = &self.data.get(item_id) else { 
+                            let item = list.item(cx, item_id, live_id!(Empty));
+                            item.draw_all(cx, &mut Scope::empty());
+                            continue 
+                        };
+                        let item = list.item(cx, item_id, live_id!(Post));
+                        item.label(ids!(content.text)).set_text(cx, &format!("{}-{}: {}", item_id, key, text));
+                        item.button(ids!(likes)).set_text(cx, &format!("{}", item_id % 23));
+                        item.button(ids!(comments)).set_text(cx, &format!("{}", item_id % 6));
+                        item.draw_all(cx, &mut Scope::empty());
+                    }
                 }
             }
         }
         DrawStep::done()
     }
     fn handle_event(&mut self, cx:&mut Cx, event:&Event, scope:&mut Scope){
-        self.view.handle_event(cx, event, scope)
+        self.view.handle_event(cx, event, scope);
     }
 }
 
@@ -971,22 +1119,13 @@ pub struct App {
 impl LiveRegister for App {
     fn live_register(cx: &mut Cx) {
         crate::makepad_widgets::live_design(cx);
-    }
-}
-
-impl MatchEvent for App {
-    fn handle_startup(&mut self, _cx:&mut Cx){
-    }
-    fn handle_actions(&mut self, _cx:&mut Cx, actions:&Actions){
-        if self.ui.button(ids!(find)).clicked(actions) {
-            
-        }
+        crate::view_list::live_design(cx);
+        crate::fold_button_with_text::live_design(cx);
     }
 }
 
 impl AppMain for App {
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
-        self.match_event(cx, event);
         self.ui.handle_event(cx, event, &mut Scope::empty());
     }
 }
