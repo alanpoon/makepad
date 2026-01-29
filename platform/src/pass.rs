@@ -16,10 +16,11 @@ use crate::{
     cx::Cx,
     draw_list::DrawListId,
     live_traits::*,
-    texture::{
-        Texture,
-    }
+    texture::Texture,
 };
+
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
+use crate::texture::CapturedPixels;
 
 #[derive(Debug)]
 pub struct Pass(PoolId);
@@ -224,6 +225,14 @@ impl Pass {
         cxpass.dpi_factor = Some(dpi);
     }
 
+    /// Capture pixels from the first color texture of this pass.
+    /// Returns None if there are no color textures or the capture fails.
+    #[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
+    pub fn capture_pixels(&self, cx: &Cx) -> Option<CapturedPixels> {
+        let cxpass = &cx.passes[self.pass_id()];
+        let color_texture = cxpass.color_textures.first()?;
+        color_texture.texture.capture_pixels(cx)
+    }
 }
 
 #[derive(Clone)]

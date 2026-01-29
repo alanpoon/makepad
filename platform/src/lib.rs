@@ -254,6 +254,8 @@ pub use {
             TextureSize,
             TextureUpdated,
             TextureAnimation,
+            CapturedPixels,
+            CapturedPixelFormat,
         },
         live_prims::{
             LiveDependency,

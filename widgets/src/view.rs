@@ -192,7 +192,7 @@ pub struct View {
     draw_list: Option<DrawList2d>,
 
     #[rust]
-    texture_cache: Option<ViewTextureCache>,
+    pub texture_cache: Option<ViewTextureCache>,
     #[rust]
     defer_walks: SmallVec<[(LiveId, DeferredWalk);1]>,
     #[rust]
@@ -208,10 +208,10 @@ pub struct View {
     animator: Animator,
 }
 
-struct ViewTextureCache {
+pub struct ViewTextureCache {
     pass: Pass,
     _depth_texture: Texture,
-    color_texture: Texture,
+    pub color_texture: Texture,
 }
 
 impl LiveHook for View {

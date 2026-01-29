@@ -14,9 +14,10 @@ pub mod geometry;
 pub mod nav;
 pub mod icon_atlas;
 pub mod text;
+pub mod capture;
  
 pub use crate::{
-    match_event::MatchEvent, 
+    match_event::MatchEvent,
     turtle::{
         Layout,
         Walk,
@@ -59,6 +60,9 @@ pub use crate::{
         GeometryQuad2D,
     },
 };
+
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
+pub use crate::capture::{save_to_png, encode_to_png_bytes};
 
 pub fn live_design(cx: &mut Cx) {
     crate::geometry::geometry_gen::live_design(cx);

@@ -30,6 +30,8 @@ use {
             TexturePixel,
             TextureAlloc,
             TextureFormat,
+            CapturedPixels,
+            CapturedPixelFormat,
         },
     },
     std::time::{Instant},
@@ -693,7 +695,7 @@ impl DrawPassMode {
 
 pub struct MetalCx {
     pub device: ObjcId,
-    command_queue: ObjcId
+    pub command_queue: ObjcId
 }
 
 
@@ -933,33 +935,112 @@ fn texture_pixel_to_mtl_pixel(pix:&TexturePixel)-> MTLPixelFormat {
      }   
 }
 impl CxTexture {
-    /*
-    pub fn copy_to_system_ram(
+    /// Capture pixels from a render target texture.
+    /// Creates a shared memory texture, blits from source, reads bytes.
+    /// This is needed because render target textures use MTLStorageMode::Private (GPU-only memory).
+    pub fn capture_render_target_pixels(
         &self,
-        _metal_cx: &MetalCx
-    )->Option<Vec<u8>>{
-        if let Some(alloc) = &self.alloc{
-            if let Some(texture) = &self.os.texture{
-                let mut buf = Vec::new();
-                buf.resize(alloc.width * alloc.height * 4, 0u8);
-                let region = MTLRegion {
-                    origin: MTLOrigin {x: 0, y: 0, z: 0},
-                    size: MTLSize {width: alloc.width as u64, height: alloc.height as u64, depth: 1}
-                };
-                let _:() = unsafe{msg_send![
-                    texture.as_id(), 
-                    getBytes: buf.as_ptr()
-                    bytesPerRow: alloc.width *4
-                    bytesPerImage: alloc.width * alloc.height * 4
-                    fromRegion: region
-                    mipmapLevel: 0
-                    slice: 0
-                ]};
-                return Some(buf);
-            }
+        metal_cx: &MetalCx,
+    ) -> Option<CapturedPixels> {
+        let alloc = self.alloc.as_ref()?;
+        let texture = self.os.texture.as_ref()?;
+
+        let width = alloc.width;
+        let height = alloc.height;
+
+        // Create command queue and buffer for this operation
+        let command_queue: ObjcId = unsafe { msg_send![metal_cx.device, newCommandQueue] };
+        let command_buffer: ObjcId = unsafe { msg_send![command_queue, commandBuffer] };
+
+        // Create shared-memory readback texture
+        let descriptor: ObjcId = unsafe { msg_send![class!(MTLTextureDescriptor), new] };
+        unsafe {
+            let _: () = msg_send![descriptor, setTextureType: MTLTextureType::D2];
+            let _: () = msg_send![descriptor, setWidth: width as u64];
+            let _: () = msg_send![descriptor, setHeight: height as u64];
+            let _: () = msg_send![descriptor, setDepth: 1u64];
+            let _: () = msg_send![descriptor, setStorageMode: MTLStorageMode::Shared];
+            let _: () = msg_send![descriptor, setPixelFormat: MTLPixelFormat::BGRA8Unorm];
+            let _: () = msg_send![descriptor, setUsage: MTLTextureUsage::ShaderRead];
         }
-        None
-    }*/
+
+        let shared_texture: ObjcId = unsafe {
+            msg_send![metal_cx.device, newTextureWithDescriptor: descriptor]
+        };
+
+        // Blit from render target to shared texture
+        unsafe {
+            let blit_encoder: ObjcId = msg_send![command_buffer, blitCommandEncoder];
+            let _: () = msg_send![blit_encoder, copyFromTexture: texture.as_id() toTexture: shared_texture];
+            let _: () = msg_send![blit_encoder, synchronizeTexture: shared_texture slice: 0u64 level: 0u64];
+            let _: () = msg_send![blit_encoder, endEncoding];
+        }
+
+        // Commit and wait
+        unsafe {
+            let _: () = msg_send![command_buffer, commit];
+            let _: () = msg_send![command_buffer, waitUntilCompleted];
+        }
+
+        // Read pixels
+        let mut buf = vec![0u8; width * height * 4];
+        let region = MTLRegion {
+            origin: MTLOrigin { x: 0, y: 0, z: 0 },
+            size: MTLSize { width: width as u64, height: height as u64, depth: 1 },
+        };
+
+        unsafe {
+            let _: () = msg_send![
+                shared_texture,
+                getBytes: buf.as_mut_ptr()
+                bytesPerRow: (width * 4) as u64
+                fromRegion: region
+                mipmapLevel: 0u64
+            ];
+            let _: () = msg_send![shared_texture, release];
+            let _: () = msg_send![descriptor, release];
+            let _: () = msg_send![command_queue, release];
+        }
+
+        Some(CapturedPixels {
+            data: buf,
+            width,
+            height,
+            format: CapturedPixelFormat::BGRAu8,
+        })
+    }
+
+    /// Copy pixels from a shared-memory texture directly (for CPU textures like VecBGRAu8_32).
+    pub fn copy_shared_texture_pixels(&self) -> Option<CapturedPixels> {
+        let alloc = self.alloc.as_ref()?;
+        let texture = self.os.texture.as_ref()?;
+
+        let width = alloc.width;
+        let height = alloc.height;
+
+        let mut buf = vec![0u8; width * height * 4];
+        let region = MTLRegion {
+            origin: MTLOrigin { x: 0, y: 0, z: 0 },
+            size: MTLSize { width: width as u64, height: height as u64, depth: 1 },
+        };
+
+        unsafe {
+            let _: () = msg_send![
+                texture.as_id(),
+                getBytes: buf.as_mut_ptr()
+                bytesPerRow: (width * 4) as u64
+                fromRegion: region
+                mipmapLevel: 0u64
+            ];
+        }
+
+        Some(CapturedPixels {
+            data: buf,
+            width,
+            height,
+            format: CapturedPixelFormat::BGRAu8,
+        })
+    }
     
     fn update_vec_texture(
         &mut self,

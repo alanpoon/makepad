@@ -9,6 +9,40 @@ use {
     std::rc::Rc,
 };
 
+/// Raw captured pixel data from a texture
+#[derive(Clone)]
+pub struct CapturedPixels {
+    pub data: Vec<u8>,
+    pub width: usize,
+    pub height: usize,
+    pub format: CapturedPixelFormat,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CapturedPixelFormat {
+    BGRAu8,
+    RGBAu8,
+}
+
+impl CapturedPixels {
+    /// Convert BGRA to RGBA in place
+    pub fn convert_to_rgba(&mut self) {
+        if self.format == CapturedPixelFormat::BGRAu8 {
+            for pixel in self.data.chunks_exact_mut(4) {
+                pixel.swap(0, 2); // Swap B and R
+            }
+            self.format = CapturedPixelFormat::RGBAu8;
+        }
+    }
+
+    /// Convert BGRA to RGBA and return a new CapturedPixels
+    pub fn to_rgba(&self) -> CapturedPixels {
+        let mut result = self.clone();
+        result.convert_to_rgba();
+        result
+    }
+}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Texture(Rc<PoolId>);
@@ -628,6 +662,66 @@ impl Texture {
         assert!(data.is_none(), "image data not taken or already put back");
         *data = Some(new_data);
         *updated = updated.update(dirty_rect);
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
+impl Texture {
+    /// Capture pixels from this texture.
+    /// Works for both CPU textures (VecBGRAu8_32) and GPU render targets.
+    ///
+    /// For GPU render targets (RenderBGRAu8), this creates a shared-memory texture,
+    /// blits from the render target, and reads the pixels.
+    ///
+    /// Returns None if the texture has no allocation or the capture fails.
+    pub fn capture_pixels(&self, cx: &Cx) -> Option<CapturedPixels> {
+        let cx_texture = &cx.textures[self.texture_id()];
+        println!("texturef format: {:#?}", cx_texture.format);
+        match &cx_texture.format {
+            // CPU texture - read directly from the data
+            TextureFormat::VecBGRAu8_32 { width, height, data, .. } => {
+                let data = data.as_ref()?;
+                let bytes: Vec<u8> = data.iter()
+                    .flat_map(|pixel| pixel.to_le_bytes())
+                    .collect();
+                Some(CapturedPixels {
+                    data: bytes,
+                    width: *width,
+                    height: *height,
+                    format: CapturedPixelFormat::BGRAu8,
+                })
+            }
+            // GPU render target - need Metal readback
+            TextureFormat::RenderBGRAu8 { .. } => {
+                // On macOS, we can access metal_device from cx.os
+                #[cfg(target_os = "macos")]
+                {
+                    use crate::os::apple::metal::MetalCx;
+                    use makepad_objc_sys::{msg_send, sel, sel_impl};
+                    let metal_device = cx.os.metal_device?;
+                    // Create a temporary MetalCx for the capture operation
+                    let metal_cx = MetalCx {
+                        device: metal_device,
+                        command_queue: unsafe {
+                            msg_send![metal_device, newCommandQueue]
+                        }
+                    };
+                    let result = cx_texture.capture_render_target_pixels(&metal_cx);
+                    // Clean up the command queue we created
+                    unsafe {
+                        let _: () = msg_send![metal_cx.command_queue, release];
+                    }
+                    result
+                }
+                #[cfg(any(target_os = "ios", target_os = "tvos"))]
+                {
+                    // On iOS/tvOS, we don't have direct metal_device access from Cx
+                    // Use the copy_shared_texture_pixels method if the texture is already shared
+                    cx_texture.copy_shared_texture_pixels()
+                }
+            }
+            _ => None,
+        }
     }
 }
 
