@@ -3,6 +3,7 @@ workspace.members = [
     # === examples ===
     "examples/hotload_ui",
     "examples/teamtalk",
+    "examples/speech_to_text",
     "examples/automate",
     "examples/map",
     "examples/arracing",
