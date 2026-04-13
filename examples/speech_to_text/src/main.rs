@@ -114,18 +114,6 @@ script_mod! {
         }
     }
 
-    // Waveform visualizer
-    set_type_default() do #(DrawWaveform::script_shader(vm)){
-        ..mod.draw.DrawQuad
-        amplitude: 0.1
-        is_recording: 0.0
-
-        pixel: fn() {
-            // SIMPLIFIED TEST: Just draw solid red to verify rendering
-            return vec4(1.0, 0.0, 0.0, 1.0)
-        }
-    }
-
     // Register widgets
     mod.widgets.MicButtonBase = #(MicButton::register_widget(vm))
     mod.widgets.MicButton = set_type_default() do mod.widgets.MicButtonBase {
@@ -133,14 +121,6 @@ script_mod! {
         height: 40
         draw_bg.is_recording: 0.0
         draw_bg.amplitude: 0.0
-    }
-
-    mod.widgets.WaveformBase = #(Waveform::register_widget(vm))
-    mod.widgets.Waveform = set_type_default() do mod.widgets.WaveformBase {
-        width: Fill
-        height: 60
-        draw_bg.amplitude: 0.5
-        draw_bg.is_recording: 0.0
     }
 
     let state = {
@@ -257,37 +237,17 @@ script_mod! {
                             draw_bg.border_radius: 8.0
                             padding: 12
 
-                            // 30 bars for waveform - green color
-                            bar_0 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_1 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_2 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_3 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_4 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_5 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_6 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_7 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_8 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_9 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_10 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_11 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_12 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_13 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_14 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_15 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_16 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_17 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_18 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_19 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_20 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_21 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_22 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_23 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_24 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_25 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_26 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_27 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_28 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
-                            bar_29 := SolidView{ width: 8, height: 30, draw_bg.color: #20E050, visible: false }
+                            // 10 bars for waveform - green color
+                            bar_0 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_1 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_2 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_3 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_4 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_5 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_6 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_7 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_8 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
+                            bar_9 := SolidView{ width: 8, height: 30, show_bg: true, draw_bg.color: #20E050, visible: false }
                         }
                     }
                 }
@@ -337,11 +297,8 @@ impl Widget for MicButton {
             return;
         }
         let uid = self.widget_uid();
-        match event.hits(cx, self.draw_bg.area()) {
-            Hit::FingerDown(_) => {
-                cx.widget_action(uid, MicButtonAction::Clicked);
-            }
-            _ => {}
+        if let Hit::FingerDown(_) = event.hits(cx, self.draw_bg.area()) {
+            cx.widget_action(uid, MicButtonAction::Clicked);
         }
     }
 }
@@ -361,73 +318,13 @@ impl MicButton {
     }
 
     pub fn clicked(&self, actions: &Actions) -> bool {
-        if let Some(item) = actions.find_widget_action(self.widget_uid()) {
-            if let MicButtonAction::Clicked = item.cast() {
-                return true;
-            }
-        }
-        false
+        actions.find_widget_action(self.widget_uid())
+            .map(|item| matches!(item.cast(), MicButtonAction::Clicked))
+            .unwrap_or(false)
     }
 }
 
 impl WidgetMatchEvent for MicButton {
-    fn handle_actions(&mut self, _cx: &mut Cx, _actions: &Actions, _scope: &mut Scope) {}
-}
-
-#[derive(Script, ScriptHook)]
-#[repr(C)]
-pub struct DrawWaveform {
-    #[deref]
-    draw_super: DrawQuad,
-    #[live]
-    amplitude: f32,
-    #[live]
-    is_recording: f32,
-}
-
-#[derive(Script, ScriptHook, Widget)]
-pub struct Waveform {
-    #[uid]
-    uid: WidgetUid,
-    #[source]
-    source: ScriptObjectRef,
-    #[walk]
-    walk: Walk,
-    #[layout]
-    layout: Layout,
-    #[redraw]
-    #[live]
-    draw_bg: DrawWaveform,
-    #[live(true)]
-    #[visible]
-    visible: bool,
-}
-
-impl Widget for Waveform {
-    fn draw_walk(&mut self, cx: &mut Cx2d, _scope: &mut Scope, walk: Walk) -> DrawStep {
-        println!("[DEBUG] Waveform draw_walk called - amplitude={:.3}, is_recording={:.1}, visible={}",
-                 self.draw_bg.amplitude, self.draw_bg.is_recording, self.visible);
-
-        if !self.visible {
-            return DrawStep::done();
-        }
-
-        let rect = cx.walk_turtle(walk);
-        self.draw_bg.draw_abs(cx, rect);
-        DrawStep::done()
-    }
-}
-
-impl Waveform {
-    pub fn update(&mut self, cx: &mut Cx, amplitude: f32, is_recording: bool) {
-        self.draw_bg.amplitude = amplitude;
-        self.draw_bg.is_recording = if is_recording { 1.0 } else { 0.0 };
-        println!("[DEBUG] Waveform update: amplitude={:.3}, is_recording={}", amplitude, is_recording);
-        self.redraw(cx);
-    }
-}
-
-impl WidgetMatchEvent for Waveform {
     fn handle_actions(&mut self, _cx: &mut Cx, _actions: &Actions, _scope: &mut Scope) {}
 }
 
@@ -459,6 +356,7 @@ fn resample_to_16k_mono(input: &AudioBuffer, from_rate: f64) -> Vec<f32> {
     let ratio = WHISPER_SAMPLE_RATE / from_rate;
     let new_len = ((input.frame_count() as f64 * ratio).round() as usize).max(1);
     let mut output = vec![0.0f32; new_len];
+    let channel_count = input.channel_count().max(1) as f32;
 
     for i in 0..new_len {
         let src_pos = i as f64 / ratio;
@@ -466,16 +364,14 @@ fn resample_to_16k_mono(input: &AudioBuffer, from_rate: f64) -> Vec<f32> {
         let frac = (src_pos - src_idx as f64) as f32;
 
         let mut sample0 = 0.0f32;
-        for ch in 0..input.channel_count() {
-            sample0 += input.channel(ch).get(src_idx).copied().unwrap_or(0.0);
-        }
-        sample0 /= input.channel_count().max(1) as f32;
-
         let mut sample1 = 0.0f32;
         for ch in 0..input.channel_count() {
-            sample1 += input.channel(ch).get(src_idx + 1).copied().unwrap_or(sample0);
+            sample0 += input.channel(ch).get(src_idx).copied().unwrap_or(0.0);
+            sample1 += input.channel(ch).get(src_idx + 1).copied().unwrap_or(0.0);
         }
-        sample1 /= input.channel_count().max(1) as f32;
+        sample0 /= channel_count;
+        sample1 /= channel_count;
+        if sample1 == 0.0 { sample1 = sample0; }
 
         output[i] = sample0 + (sample1 - sample0) * frac;
     }
@@ -517,39 +413,27 @@ fn find_model_path() -> Option<String> {
 
 fn transcribe_samples(samples: Vec<f32>, state: Arc<RecordingState>) {
     std::thread::spawn(move || {
-        println!("Starting transcription of {} samples...", samples.len());
-
         let model_path = match find_model_path() {
             Some(path) => path,
             None => {
-                let error_msg = "Model not found. Set MAKEPAD_VOICE_MODEL";
-                println!("{}", error_msg);
-                *state.transcription_result.lock().unwrap() = Some(format!("[Error: {}]", error_msg));
+                *state.transcription_result.lock().unwrap() = Some("[Error: Model not found]".to_string());
                 return;
             }
         };
-
-        println!("Using model: {}", model_path);
 
         match makepad_voice::WhisperModel::load_file(&model_path) {
             Ok(model) => {
                 let mut whisper_state = makepad_voice::WhisperState::new(&model);
                 let params = makepad_voice::WhisperParams::default();
-
                 let segments = whisper_state.transcribe(&model, &samples, &params);
-
                 let text: String = segments.iter()
                     .map(|s| s.text.trim())
                     .collect::<Vec<_>>()
                     .join(" ");
-
-                println!("Transcription result: {}", text);
                 *state.transcription_result.lock().unwrap() = Some(text);
             }
-            Err(e) => {
-                let error_msg = format!("Failed to load model: {:?}", e);
-                println!("{}", error_msg);
-                *state.transcription_result.lock().unwrap() = Some(format!("[Error]"));
+            Err(_) => {
+                *state.transcription_result.lock().unwrap() = Some("[Error: Failed to load model]".to_string());
             }
         }
     });
@@ -577,26 +461,11 @@ pub struct App {
 impl MatchEvent for App {
     fn handle_startup(&mut self, cx: &mut Cx) {
         self.state = Some(RecordingState::new());
-
-        println!("Speech-to-Text with Waveform Visualizer");
-        println!("Click the microphone button to start/stop recording");
-        println!("\n=== Stdin Commands ===");
-        println!("  r          - Toggle recording on/off");
-        println!("  t          - Transcribe accumulated samples");
-        println!("  w          - Test waveform with fake audio (5 sec)");
-        println!("  s <amp>    - Set amplitude 0.0-1.0 (e.g., 's 0.5')");
-        println!("  c          - Clear all samples");
-        println!("  h          - Show help");
-        println!("  q          - Quit");
-        println!("======================\n");
-
         cx.use_audio_inputs(&[]);
-        self.wave_update_timer = cx.start_interval(0.033); // ~30fps
-
-        // Initialize waveform
+        self.wave_update_timer = cx.start_interval(0.033);
         self.current_amplitude = 0.0;
 
-        // Stdin commands
+        // Stdin commands (r=record, t=transcribe, c=clear, q=quit)
         let state = self.state.clone().unwrap();
         std::thread::spawn(move || {
             let stdin = std::io::stdin();
@@ -604,112 +473,28 @@ impl MatchEvent for App {
             loop {
                 line.clear();
                 if stdin.read_line(&mut line).is_ok() {
-                    let cmd = line.trim();
-                    let parts: Vec<&str> = cmd.split_whitespace().collect();
-
-                    match parts.get(0).copied().unwrap_or("") {
+                    match line.trim() {
                         "r" => {
                             let was = state.is_recording.load(Ordering::SeqCst);
                             state.is_recording.store(!was, Ordering::SeqCst);
-                            if was {
-                                println!("[STDIN] Stopped recording");
-                            } else {
+                            if !was {
                                 state.accumulated_samples.lock().unwrap().clear();
                                 state.recent_samples.lock().unwrap().clear();
-                                println!("[STDIN] Started recording");
                             }
                         }
                         "t" => {
                             let samples = state.accumulated_samples.lock().unwrap().clone();
                             if !samples.is_empty() {
-                                println!("[STDIN] Transcribing {} samples...", samples.len());
                                 transcribe_samples(samples, state.clone());
-                            } else {
-                                println!("[STDIN] No samples to transcribe");
                             }
                         }
-                        "w" => {
-                            println!("[STDIN] Testing waveform with fake audio (5 seconds)...");
-                            state.is_recording.store(true, Ordering::SeqCst);
-
-                            // Generate 5 seconds of fake audio samples at 16kHz
-                            let duration_secs = 5.0;
-                            let sample_rate = WHISPER_SAMPLE_RATE as f32;
-                            let num_samples = (duration_secs * sample_rate) as usize;
-                            let mut fake_samples = Vec::with_capacity(num_samples);
-
-                            for i in 0..num_samples {
-                                let t = i as f32 / sample_rate;
-                                // Generate a mix of frequencies for interesting waveform
-                                let freq1 = 440.0; // A4 note
-                                let freq2 = 880.0; // A5 note
-                                let sample = (0.3 * (2.0 * std::f32::consts::PI * freq1 * t).sin()
-                                           + 0.2 * (2.0 * std::f32::consts::PI * freq2 * t).sin())
-                                           * (1.0 - t / duration_secs); // Fade out
-                                fake_samples.push(sample);
-                            }
-
-                            // Add to accumulated samples
-                            state.accumulated_samples.lock().unwrap().extend_from_slice(&fake_samples);
-
-                            // Update recent samples for visualization (last 100ms)
-                            let recent_count = (sample_rate * 0.1) as usize;
-                            let start_idx = num_samples.saturating_sub(recent_count);
-                            state.recent_samples.lock().unwrap().clear();
-                            state.recent_samples.lock().unwrap().extend_from_slice(&fake_samples[start_idx..]);
-
-                            println!("[STDIN] Generated {} fake samples. Type 'r' to stop, 't' to transcribe.", num_samples);
-                        }
-                        "s" => {
-                            if let Some(amp_str) = parts.get(1) {
-                                if let Ok(amplitude) = amp_str.parse::<f32>() {
-                                    let clamped = amplitude.clamp(0.0, 1.0);
-                                    println!("[STDIN] Setting amplitude to {:.2}", clamped);
-
-                                    // Generate samples based on amplitude
-                                    let sample_rate = WHISPER_SAMPLE_RATE as f32;
-                                    let num_samples = (sample_rate * 0.1) as usize; // 100ms
-                                    let mut samples: Vec<f32> = (0..num_samples)
-                                        .map(|i| {
-                                            let t = i as f32 / sample_rate;
-                                            clamped * (2.0 * std::f32::consts::PI * 440.0 * t).sin()
-                                        })
-                                        .collect();
-
-                                    state.recent_samples.lock().unwrap().clear();
-                                    state.recent_samples.lock().unwrap().append(&mut samples);
-                                } else {
-                                    println!("[STDIN] Invalid amplitude. Use: s <0.0-1.0>");
-                                }
-                            } else {
-                                println!("[STDIN] Usage: s <amplitude>  (e.g., s 0.5)");
-                            }
-                        }
-                        "c" | "clear" => {
+                        "c" => {
                             state.accumulated_samples.lock().unwrap().clear();
                             state.recent_samples.lock().unwrap().clear();
                             state.is_recording.store(false, Ordering::SeqCst);
-                            println!("[STDIN] Cleared all samples and stopped recording");
                         }
-                        "h" | "help" => {
-                            println!("\n=== Stdin Commands ===");
-                            println!("  r          - Toggle recording on/off");
-                            println!("  t          - Transcribe accumulated samples");
-                            println!("  w          - Test waveform with fake audio (5 sec)");
-                            println!("  s <amp>    - Set amplitude 0.0-1.0 (e.g., s 0.5)");
-                            println!("  c          - Clear all samples");
-                            println!("  h          - Show help");
-                            println!("  q          - Quit");
-                            println!("======================\n");
-                        }
-                        "q" | "quit" | "exit" => {
-                            println!("[STDIN] Exiting...");
-                            std::process::exit(0);
-                        }
-                        "" => {} // Empty line, do nothing
-                        _ => {
-                            println!("[STDIN] Unknown command: '{}'. Type 'h' for help.", cmd);
-                        }
+                        "q" => std::process::exit(0),
+                        _ => {}
                     }
                 }
             }
@@ -717,10 +502,6 @@ impl MatchEvent for App {
     }
 
     fn handle_audio_devices(&mut self, cx: &mut Cx, devices: &AudioDevicesEvent) {
-        println!("Audio devices:");
-        for desc in &devices.descs {
-            println!("  {}", desc);
-        }
         cx.use_audio_inputs(&devices.default_input());
         self.audio_initialized = true;
     }
@@ -737,7 +518,7 @@ impl MatchEvent for App {
                         0.0
                     } else {
                         let rms: f32 = (recent.iter().map(|s| s * s).sum::<f32>() / recent.len() as f32).sqrt();
-                        (rms * 15.0).min(1.0)
+                        (rms * 30.0).min(1.0)  // Increased sensitivity
                     }
                 };
 
@@ -745,12 +526,10 @@ impl MatchEvent for App {
                 self.current_amplitude = self.current_amplitude * 0.7 + amplitude * 0.3;
 
                 // Update waveform bars - show/hide based on amplitude
-                let bar_count = (self.current_amplitude * 30.0) as usize;
-
-                for i in 0..30 {
+                let bar_count = (self.current_amplitude * 10.0) as usize;
+                for i in 0..10 {
                     let bar_id = LiveId::from_str(&format!("bar_{}", i));
-                    let is_active = i < bar_count;
-                    self.ui.view(cx, &[bar_id]).set_visible(cx, is_active);
+                    self.ui.view(cx, &[bar_id]).set_visible(cx, i < bar_count);
                 }
 
                 // Update mic button with amplitude and recording state
@@ -775,12 +554,7 @@ impl MatchEvent for App {
 
                 // Check for transcription results
                 if let Some(result) = state.transcription_result.lock().unwrap().take() {
-                    println!("Transcription: {}", result);
-
                     self.is_transcribing = false;
-                    println!("[DEBUG] Set is_transcribing = false");
-
-                    // Append to existing text
                     let current_text = self.ui.text_input(cx, ids!(result_input)).text();
                     let new_text = if current_text.is_empty() {
                         result
@@ -797,9 +571,6 @@ impl MatchEvent for App {
     fn handle_signal(&mut self, cx: &mut Cx) {
         if let Some(ref state) = self.state {
             if let Some(result) = state.transcription_result.lock().unwrap().take() {
-                println!("Transcription: {}", result);
-
-                // Append to existing text
                 let current_text = self.ui.text_input(cx, ids!(result_input)).text();
                 let new_text = if current_text.is_empty() {
                     result
@@ -823,34 +594,27 @@ impl MatchEvent for App {
         };
 
         // Mic button clicked
-        let mic_clicked = if let Some(mic_button) = self.ui.widget(cx, ids!(mic_button)).borrow::<MicButton>() {
-            mic_button.clicked(actions)
-        } else {
-            false
-        };
+        let mic_clicked = self.ui.widget(cx, ids!(mic_button))
+            .borrow::<MicButton>()
+            .map(|btn| btn.clicked(actions))
+            .unwrap_or(false);
 
         if mic_clicked {
             let was_recording = state.is_recording.load(Ordering::SeqCst);
             state.is_recording.store(!was_recording, Ordering::SeqCst);
 
             if was_recording {
-                // Stop and transcribe
                 self.recording_start_time = None;
                 let samples = state.accumulated_samples.lock().unwrap().clone();
-                println!("Stopped. {} samples ({:.1}s)", samples.len(), samples.len() as f64 / WHISPER_SAMPLE_RATE);
-
                 if !samples.is_empty() {
                     self.is_transcribing = true;
-                    println!("[DEBUG] Set is_transcribing = true");
                     self.ui.label(cx, ids!(status_label)).set_text(cx, "Transcribing...");
                     transcribe_samples(samples, state.clone());
                 }
             } else {
-                // Start recording
                 self.recording_start_time = Some(std::time::Instant::now());
                 state.accumulated_samples.lock().unwrap().clear();
                 state.recent_samples.lock().unwrap().clear();
-                println!("Recording...");
                 self.ui.label(cx, ids!(status_label)).set_text(cx, "Recording... Click mic to stop");
             }
         }
@@ -878,18 +642,18 @@ impl App {
 
         cx.audio_input(0, move |info, input_buffer| {
             *state.sample_rate.lock().unwrap() = info.sample_rate;
-
             let resampled = resample_to_16k_mono(input_buffer, info.sample_rate);
 
-            // Always update recent samples for waveform visualization
-            let mut recent = state.recent_samples.lock().unwrap();
-            recent.extend(resampled.iter());
-            let max_recent = 1600; // 100ms at 16kHz
-            let len = recent.len();
-            if len > max_recent {
-                recent.drain(0..len - max_recent);
+            // Update recent samples for waveform visualization
+            {
+                let mut recent = state.recent_samples.lock().unwrap();
+                recent.extend(resampled.iter());
+                const MAX_RECENT: usize = 1600; // 100ms at 16kHz
+                let len = recent.len();
+                if len > MAX_RECENT {
+                    recent.drain(0..len - MAX_RECENT);
+                }
             }
-            drop(recent);
 
             // Only accumulate samples when recording for transcription
             if state.is_recording.load(Ordering::SeqCst) {
