@@ -1000,6 +1000,20 @@ impl Cx {
                         metal_window.cocoa_window.restore();
                     }
                 }
+                CxOsOp::FullscreenWindow(window_id) => {
+                    if let Some(metal_window) =
+                        metal_windows.iter_mut().find(|w| w.window_id == window_id)
+                    {
+                        metal_window.cocoa_window.fullscreen();
+                    }
+                }
+                CxOsOp::NormalizeWindow(window_id) => {
+                    if let Some(metal_window) =
+                        metal_windows.iter_mut().find(|w| w.window_id == window_id)
+                    {
+                        metal_window.cocoa_window.normal();
+                    }
+                }
                 CxOsOp::HideWindow(window_id) => {
                     if let Some(metal_window) =
                         metal_windows.iter_mut().find(|w| w.window_id == window_id)
