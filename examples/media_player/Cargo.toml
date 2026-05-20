@@ -5,4 +5,12 @@ edition = "2021"
 
 [dependencies]
 makepad-widgets = { path = "../../widgets", version = "2.0.0" }
-symphonia = { version = "0.5", default-features = false, features = ["mp3"] }
+symphonia = { version = "0.5", default-features = false, features = [
+    "mp3",
+    "wav",
+    "aiff",
+    "flac",
+    "isomp4",
+    "alac",
+    "pcm",
+] }

@@ -38,22 +38,22 @@ pub enum DecodeError {
 impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Probe(err) => write!(f, "failed to probe MP3: {err}"),
+            Self::Probe(err) => write!(f, "failed to probe audio: {err}"),
             Self::MissingTrack => write!(f, "no audio track found"),
             Self::UnsupportedTrack => write!(f, "audio track is missing required parameters"),
-            Self::Decode(err) => write!(f, "failed to decode MP3: {err}"),
-            Self::Empty => write!(f, "decoded MP3 did not contain audio samples"),
+            Self::Decode(err) => write!(f, "failed to decode audio: {err}"),
+            Self::Empty => write!(f, "decoded audio did not contain samples"),
         }
     }
 }
 
 impl std::error::Error for DecodeError {}
 
-pub fn decode_mp3(bytes: &[u8]) -> Result<DecodedPcm, DecodeError> {
+pub fn decode_audio(bytes: &[u8], hint_ext: &str) -> Result<DecodedPcm, DecodeError> {
     let cursor = Cursor::new(bytes.to_vec());
     let media_source = MediaSourceStream::new(Box::new(cursor), Default::default());
     let mut hint = Hint::new();
-    hint.with_extension("mp3");
+    hint.with_extension(hint_ext);
 
     let probed = get_probe()
         .format(
@@ -72,9 +72,6 @@ pub fn decode_mp3(bytes: &[u8]) -> Result<DecodedPcm, DecodeError> {
         .ok_or(DecodeError::MissingTrack)?;
 
     let track_id = track.id;
-    if track.codec_params.sample_rate.is_none() || track.codec_params.channels.is_none() {
-        return Err(DecodeError::UnsupportedTrack);
-    }
 
     let mut decoder = get_codecs()
         .make(&track.codec_params, &DecoderOptions::default())
@@ -150,18 +147,56 @@ mod tests {
     use super::*;
 
     const SAMPLE_MP3: &[u8] = include_bytes!("../resources/sample.mp3");
+    const SAMPLE_WAV: &[u8] = include_bytes!("../resources/sample.wav");
+    const SAMPLE_AIFF: &[u8] = include_bytes!("../resources/sample.aiff");
+    const SAMPLE_FLAC: &[u8] = include_bytes!("../resources/sample.flac");
+    const SAMPLE_M4A: &[u8] = include_bytes!("../resources/sample.m4a");
+
+    fn assert_decodes(bytes: &[u8], ext: &str, label: &str) {
+        let decoded = decode_audio(bytes, ext).unwrap_or_else(|err| {
+            panic!("{label} should decode: {err}");
+        });
+        assert_eq!(decoded.channels, 2, "{label} should be stereo");
+        assert!(decoded.sample_rate > 0, "{label} should have non-zero rate");
+        assert_eq!(
+            decoded.interleaved_samples.len() % 2,
+            0,
+            "{label} samples must be paired",
+        );
+        assert!(
+            !decoded.interleaved_samples.is_empty(),
+            "{label} must produce samples",
+        );
+    }
 
     #[test]
-    fn test_decode_returns_stereo_interleaved_f32_for_sample() {
-        let decoded = decode_mp3(SAMPLE_MP3).expect("sample MP3 should decode");
-        assert_eq!(decoded.channels, 2);
-        assert!(decoded.sample_rate > 0);
-        assert_eq!(decoded.interleaved_samples.len() % 2, 0);
+    fn test_decode_returns_stereo_interleaved_f32_for_mp3_sample() {
+        assert_decodes(SAMPLE_MP3, "mp3", "MP3");
+    }
+
+    #[test]
+    fn test_decode_returns_stereo_interleaved_f32_for_wav_sample() {
+        assert_decodes(SAMPLE_WAV, "wav", "WAV");
+    }
+
+    #[test]
+    fn test_decode_returns_stereo_interleaved_f32_for_aiff_sample() {
+        assert_decodes(SAMPLE_AIFF, "aiff", "AIFF");
+    }
+
+    #[test]
+    fn test_decode_returns_stereo_interleaved_f32_for_flac_sample() {
+        assert_decodes(SAMPLE_FLAC, "flac", "FLAC");
+    }
+
+    #[test]
+    fn test_decode_returns_stereo_interleaved_f32_for_alac_sample() {
+        assert_decodes(SAMPLE_M4A, "m4a", "ALAC");
     }
 
     #[test]
     fn test_decode_returns_error_for_truncated_input() {
-        let result = decode_mp3(&SAMPLE_MP3[..16]);
+        let result = decode_audio(&SAMPLE_MP3[..16], "mp3");
         assert!(matches!(
             result,
             Err(DecodeError::Probe(_) | DecodeError::Decode(_) | DecodeError::Empty)

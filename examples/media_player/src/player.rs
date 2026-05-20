@@ -24,7 +24,15 @@ pub fn fill_audio_output(
     output: &mut AudioBuffer,
 ) {
     output.zero();
+    mix_audio_output(state, source, info, output);
+}
 
+pub fn mix_audio_output(
+    state: &mut PlayerState,
+    source: &DecodedPcm,
+    info: AudioInfo,
+    output: &mut AudioBuffer,
+) {
     if !state.playing || source.interleaved_samples.is_empty() {
         return;
     }
@@ -55,12 +63,12 @@ pub fn fill_audio_output(
         let left = interpolate_sample(source, src_idx, next_idx, frac, 0);
         let right = interpolate_sample(source, src_idx, next_idx, frac, 1);
 
-        output.data[frame] = left;
+        output.data[frame] += left;
         if output_channels > 1 {
-            output.data[frame + output_frames] = right;
+            output.data[frame + output_frames] += right;
         }
         for channel in 2..output_channels {
-            output.data[channel * output_frames + frame] = 0.5 * (left + right);
+            output.data[channel * output_frames + frame] += 0.5 * (left + right);
         }
 
         state.cursor_frames += src_step;
