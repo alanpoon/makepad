@@ -30,7 +30,7 @@ script_mod! {
     startup() do #(App::script_component(vm)){
         ui: Root{
             main_window := Window{
-                window.inner_size: vec2(360, 340)
+                window.inner_size: vec2(420, 620)
                 body +: {
                     View{
                         width: Fill
@@ -48,7 +48,7 @@ script_mod! {
                             height: Fit
                             flow: Right
                             spacing: 12
-                            align: { y: 0.5 }
+                            align: Align{x: 0.0 y: 0.5}
                             Label{ text: "MP3" width: 60 }
                             play_mp3 := Button{ text: "Play" }
                         }
@@ -57,7 +57,7 @@ script_mod! {
                             height: Fit
                             flow: Right
                             spacing: 12
-                            align: { y: 0.5 }
+                            align: Align{x: 0.0 y: 0.5}
                             Label{ text: "WAV" width: 60 }
                             play_wav := Button{ text: "Play" }
                         }
@@ -66,7 +66,7 @@ script_mod! {
                             height: Fit
                             flow: Right
                             spacing: 12
-                            align: { y: 0.5 }
+                            align: Align{x: 0.0 y: 0.5}
                             Label{ text: "AIFF" width: 60 }
                             play_aiff := Button{ text: "Play" }
                         }
@@ -75,7 +75,7 @@ script_mod! {
                             height: Fit
                             flow: Right
                             spacing: 12
-                            align: { y: 0.5 }
+                            align: Align{x: 0.0 y: 0.5}
                             Label{ text: "FLAC" width: 60 }
                             play_flac := Button{ text: "Play" }
                         }
@@ -84,9 +84,85 @@ script_mod! {
                             height: Fit
                             flow: Right
                             spacing: 12
-                            align: { y: 0.5 }
+                            align: Align{x: 0.0 y: 0.5}
                             Label{ text: "ALAC" width: 60 }
                             play_alac := Button{ text: "Play" }
+                        }
+                        camera_texture_host := View{
+                            width: Fill
+                            height: 500
+                            flow: Down
+                            spacing: 8
+                            align: Center
+                            View{
+                                width: Fill
+                                height: 500
+                                flow: Overlay
+                                camera_video_texture := Video{
+                                    width: Fill
+                                    height: 500
+                                    source: VideoDataSource.Dependency {
+                                        res: crate_resource("self:resources/confetti_feature_animation.mp4")
+                                    }
+                                    autoplay: false
+                                    is_looping: true
+                                    show_controls: true
+                                }
+                                View{
+                                    width: Fill
+                                    height: Fill
+                                    align: Align{x: 1.0 y: 0.0}
+                                    padding: 8
+                                    maximize_top_btn := Button{ text: "⛶" }
+                                }
+                            }
+                            View{
+                                width: Fit
+                                height: Fit
+                                flow: Right
+                                spacing: 12
+                                align: Center
+                                playpause_main_btn := Button{ text: "Pause" }
+                                maximize_btn := Button{ text: "Maximize" }
+                            }
+                        }
+                    }
+                    video_modal := Modal{
+                        content +: {
+                            width: Fit
+                            height: Fit
+                            padding: 16
+                            spacing: 12
+                            align: Center
+                            View{
+                                width: Fit
+                                height: Fit
+                                show_bg: true
+                                draw_bg.color: #222
+                                padding: 16
+                                spacing: 12
+                                flow: Down
+                                align: Center
+                                modal_video := Video{
+                                    width: 640
+                                    height: 360
+                                    source: VideoDataSource.Dependency {
+                                        res: crate_resource("self:resources/confetti_feature_animation.mp4")
+                                    }
+                                    autoplay: false
+                                    is_looping: true
+                                    show_controls: true
+                                }
+                                View{
+                                    width: Fit
+                                    height: Fit
+                                    flow: Right
+                                    spacing: 12
+                                    align: Center
+                                    playpause_modal_btn := Button{ text: "Pause" }
+                                    close_modal_btn := Button{ text: "Close" }
+                                }
+                            }
                         }
                     }
                 }
@@ -185,6 +261,72 @@ impl MatchEvent for App {
         }
         if self.ui.button(cx, ids!(play_alac)).clicked(actions) {
             self.toggle(cx, 4, ids!(play_alac));
+        }
+        if self.ui.button(cx, ids!(playpause_main_btn)).clicked(actions) {
+            let video = self.ui.video(cx, ids!(camera_video_texture));
+            if video.is_playing() {
+                log!("[lib] playpause_main_btn: pausing");
+                video.pause_playback(cx);
+                self.ui
+                    .button(cx, ids!(playpause_main_btn))
+                    .set_text(cx, "Play");
+            } else {
+                log!("[lib] playpause_main_btn: resuming");
+                video.resume_playback(cx);
+                self.ui
+                    .button(cx, ids!(playpause_main_btn))
+                    .set_text(cx, "Pause");
+            }
+        }
+        let maximize_clicked = self.ui.button(cx, ids!(maximize_btn)).clicked(actions)
+            || self.ui.button(cx, ids!(maximize_top_btn)).clicked(actions);
+        if maximize_clicked {
+            log!("[lib] maximize clicked: stop main, open modal, begin modal_video");
+            self.ui
+                .video(cx, ids!(camera_video_texture))
+                .stop_and_cleanup_resources(cx);
+            self.ui
+                .button(cx, ids!(playpause_main_btn))
+                .set_text(cx, "Play");
+            self.ui.modal(cx, ids!(video_modal)).open(cx);
+            self.ui
+                .video(cx, ids!(modal_video))
+                .begin_playback(cx);
+            self.ui
+                .button(cx, ids!(playpause_modal_btn))
+                .set_text(cx, "Pause");
+        }
+        if self.ui.button(cx, ids!(playpause_modal_btn)).clicked(actions) {
+            let video = self.ui.video(cx, ids!(modal_video));
+            if video.is_playing() {
+                log!("[lib] playpause_modal_btn: pausing");
+                video.pause_playback(cx);
+                self.ui
+                    .button(cx, ids!(playpause_modal_btn))
+                    .set_text(cx, "Play");
+            } else {
+                log!("[lib] playpause_modal_btn: resuming");
+                video.resume_playback(cx);
+                self.ui
+                    .button(cx, ids!(playpause_modal_btn))
+                    .set_text(cx, "Pause");
+            }
+        }
+        let close_clicked = self.ui.button(cx, ids!(close_modal_btn)).clicked(actions);
+        let dismissed = self.ui.modal(cx, ids!(video_modal)).dismissed(actions);
+        if close_clicked || dismissed {
+            self.ui
+                .video(cx, ids!(modal_video))
+                .stop_and_cleanup_resources(cx);
+            self.ui
+                .video(cx, ids!(camera_video_texture))
+                .begin_playback(cx);
+            self.ui
+                .button(cx, ids!(playpause_main_btn))
+                .set_text(cx, "Pause");
+            if close_clicked {
+                self.ui.modal(cx, ids!(video_modal)).close(cx);
+            }
         }
     }
 }
