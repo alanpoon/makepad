@@ -478,6 +478,22 @@ impl MacosWindow {
         }
     }
 
+    pub fn fullscreen(&mut self) {
+        if !self.is_fullscreen {
+            unsafe {
+                let () = msg_send![self.window, toggleFullScreen: nil];
+            }
+        }
+    }
+
+    pub fn normal(&mut self) {
+        if self.is_fullscreen {
+            unsafe {
+                let () = msg_send![self.window, toggleFullScreen: nil];
+            }
+        }
+    }
+
     pub fn minimize(&mut self) {
         unsafe {
             let () = msg_send![self.window, miniaturize: nil];
