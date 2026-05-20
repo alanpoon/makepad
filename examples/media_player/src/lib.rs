@@ -281,7 +281,7 @@ impl MatchEvent for App {
         let maximize_clicked = self.ui.button(cx, ids!(maximize_btn)).clicked(actions)
             || self.ui.button(cx, ids!(maximize_top_btn)).clicked(actions);
         if maximize_clicked {
-            log!("[lib] maximize clicked: stop main, open modal, begin modal_video");
+            log!("[lib] maximize clicked: stop main, open modal, begin modal_video, fullscreen window");
             self.ui
                 .video(cx, ids!(camera_video_texture))
                 .stop_and_cleanup_resources(cx);
@@ -295,6 +295,7 @@ impl MatchEvent for App {
             self.ui
                 .button(cx, ids!(playpause_modal_btn))
                 .set_text(cx, "Pause");
+            self.ui.window(cx, ids!(main_window)).fullscreen(cx);
         }
         if self.ui.button(cx, ids!(playpause_modal_btn)).clicked(actions) {
             let video = self.ui.video(cx, ids!(modal_video));
@@ -324,6 +325,7 @@ impl MatchEvent for App {
             self.ui
                 .button(cx, ids!(playpause_main_btn))
                 .set_text(cx, "Pause");
+            self.ui.window(cx, ids!(main_window)).disable_fullscreen(cx);
             if close_clicked {
                 self.ui.modal(cx, ids!(video_modal)).close(cx);
             }
