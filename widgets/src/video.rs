@@ -575,6 +575,23 @@ impl VideoRef {
         }
     }
 
+    /// Returns the most recent known playback position in milliseconds.
+    pub fn current_position_ms(&self) -> u128 {
+        if let Some(inner) = self.borrow() {
+            inner.current_position_ms
+        } else {
+            0
+        }
+    }
+
+    /// Seeks playback to the given position in milliseconds. Has no effect if the
+    /// underlying player has not yet been prepared.
+    pub fn seek_to(&self, cx: &mut Cx, position_ms: u64) {
+        if let Some(inner) = self.borrow() {
+            cx.seek_video_playback(inner.id, position_ms);
+        }
+    }
+
     /// Updates the source of the video data. Currently it only proceeds if the video is in Unprepared state.
     pub fn set_source(&self, source: VideoDataSource) {
         if let Some(mut inner) = self.borrow_mut() {
@@ -648,6 +665,21 @@ impl VideoRef {
         if let Some(mut inner) = self.borrow_mut() {
             inner.thumbnail_texture = texture;
             inner.load_thumbnail_image(cx);
+        }
+    }
+
+    /// Toggles whether the thumbnail texture is drawn in place of the video frame.
+    ///
+    /// When `show` is `true`, the widget samples [`thumbnail_texture`] instead of the
+    /// video/YUV textures and triggers a redraw. Playback state is unaffected — the
+    /// underlying player keeps running unless you also call [`pause_playback`] or
+    /// [`stop_and_cleanup_resources`]. Has no effect if no thumbnail texture has been
+    /// loaded (via [`set_thumbnail_texture`] or the `thumbnail_source` property).
+    pub fn show_thumbnail(&self, cx: &mut Cx, show: bool) {
+        if let Some(mut inner) = self.borrow_mut() {
+            let value: f32 = if show { 1.0 } else { 0.0 };
+            inner.draw_bg.set_uniform(cx, id!(show_thumbnail), &[value]);
+            inner.redraw(cx);
         }
     }
 

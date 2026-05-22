@@ -100,7 +100,7 @@ script_mod! {
                                 flow: Overlay
                                 camera_video_texture := Video{
                                     width: Fill
-                                    height: 500
+                                    height: 300
                                     source: VideoDataSource.Dependency {
                                         res: crate_resource("self:resources/confetti_feature_animation.mp4")
                                     }
@@ -113,30 +113,33 @@ script_mod! {
                                     height: Fill
                                     align: Align{x: 1.0 y: 0.0}
                                     padding: 8
+                                    spacing: 8
+                                    flow: Right
+                                    toggle_thumbnail_btn := Button{ text: "Hide Thumb" }
                                     maximize_top_btn := Button{ text: "⛶" }
                                 }
                             }
-                            View{
-                                width: Fit
-                                height: Fit
-                                flow: Right
-                                spacing: 12
-                                align: Center
-                                playpause_main_btn := Button{ text: "Pause" }
-                                maximize_btn := Button{ text: "Maximize" }
-                            }
+                            // View{
+                            //     width: Fit
+                            //     height: Fit
+                            //     flow: Right
+                            //     spacing: 12
+                            //     align: Center
+                            //     playpause_main_btn := Button{ text: "Play" }
+                            //     maximize_btn := Button{ text: "Maximize" }
+                            // }
                         }
                     }
                     video_modal := Modal{
                         content +: {
-                            width: Fit
-                            height: Fit
+                            width: Fill
+                            height: Fill
                             padding: 16
                             spacing: 12
                             align: Center
                             View{
-                                width: Fit
-                                height: Fit
+                                width: Fill
+                                height: Fill
                                 show_bg: true
                                 draw_bg.color: #222
                                 padding: 16
@@ -144,8 +147,8 @@ script_mod! {
                                 flow: Down
                                 align: Center
                                 modal_video := Video{
-                                    width: 640
-                                    height: 360
+                                    width: Fill
+                                    height: Fill
                                     source: VideoDataSource.Dependency {
                                         res: crate_resource("self:resources/confetti_feature_animation.mp4")
                                     }
@@ -182,6 +185,14 @@ pub struct App {
     ui: WidgetRef,
     #[rust]
     tracks: Vec<Track>,
+    #[rust]
+    pending_fullscreen: Option<NextFrame>,
+    #[rust]
+    pending_normalize: Option<NextFrame>,
+    #[rust]
+    pending_modal_seek_ms: Option<u64>,
+    #[rust(true)]
+    thumbnail_visible: bool,
 }
 
 impl App {
@@ -199,6 +210,20 @@ impl App {
         self.ui
             .button(cx, button_path)
             .set_text(cx, if playing { "Pause" } else { "Play" });
+    }
+
+    fn close_video_modal(&mut self, cx: &mut Cx) {
+        self.ui
+            .video(cx, ids!(modal_video))
+            .stop_and_cleanup_resources(cx);
+        self.ui
+            .video(cx, ids!(camera_video_texture))
+            .begin_playback(cx);
+        self.ui
+            .button(cx, ids!(playpause_main_btn))
+            .set_text(cx, "Pause");
+        self.pending_normalize = Some(cx.new_next_frame());
+        self.ui.modal(cx, ids!(video_modal)).close(cx);
     }
 }
 
@@ -240,13 +265,59 @@ impl MatchEvent for App {
                 }
             }
         });
+
+        // Build a solid grey BGRA texture and show it in place of the video frame.
+        // Layout: little-endian u32 = 0xAA_RR_GG_BB after byte swap → bytes B,G,R,A.
+        let grey: u32 = 0xFF80_8080;
+        let width = 64usize;
+        let height = 64usize;
+        let grey_tex = Texture::new_with_format(
+            cx,
+            TextureFormat::VecBGRAu8_32 {
+                data: Some(vec![grey; width * height]),
+                width,
+                height,
+                updated: TextureUpdated::Full,
+            },
+        );
+        let video = self.ui.video(cx, ids!(camera_video_texture));
+        video.set_thumbnail_texture(cx, Some(grey_tex));
+        video.show_thumbnail(cx, true);
     }
 
     fn handle_audio_devices(&mut self, cx: &mut Cx, devices: &AudioDevicesEvent) {
         cx.use_audio_outputs(&devices.default_output());
     }
 
+    fn handle_next_frame(&mut self, cx: &mut Cx, e: &NextFrameEvent) {
+        if let Some(nf) = self.pending_fullscreen {
+            if e.set.contains(&nf) {
+                log!("[lib] deferred fullscreen window");
+                self.ui.window(cx, ids!(main_window)).fullscreen(cx);
+                self.pending_fullscreen = None;
+            }
+        }
+        if let Some(nf) = self.pending_normalize {
+            if e.set.contains(&nf) {
+                log!("[lib] deferred normalize window");
+                self.ui.window(cx, ids!(main_window)).disable_fullscreen(cx);
+                self.pending_normalize = None;
+            }
+        }
+    }
+
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
+        if self.ui.button(cx, ids!(toggle_thumbnail_btn)).clicked(actions) {
+            self.thumbnail_visible = !self.thumbnail_visible;
+            self.ui
+                .video(cx, ids!(camera_video_texture))
+                .show_thumbnail(cx, self.thumbnail_visible);
+            self.ui.button(cx, ids!(toggle_thumbnail_btn)).set_text(
+                cx,
+                if self.thumbnail_visible { "Hide Thumb" } else { "Show Thumb" },
+            );
+        }
+        return;
         if self.ui.button(cx, ids!(play_mp3)).clicked(actions) {
             self.toggle(cx, 0, ids!(play_mp3));
         }
@@ -270,9 +341,15 @@ impl MatchEvent for App {
                 self.ui
                     .button(cx, ids!(playpause_main_btn))
                     .set_text(cx, "Play");
-            } else {
+            } else if video.is_paused() {
                 log!("[lib] playpause_main_btn: resuming");
                 video.resume_playback(cx);
+                self.ui
+                    .button(cx, ids!(playpause_main_btn))
+                    .set_text(cx, "Pause");
+            } else {
+                log!("[lib] playpause_main_btn: begin playback");
+                video.begin_playback(cx);
                 self.ui
                     .button(cx, ids!(playpause_main_btn))
                     .set_text(cx, "Pause");
@@ -281,7 +358,15 @@ impl MatchEvent for App {
         let maximize_clicked = self.ui.button(cx, ids!(maximize_btn)).clicked(actions)
             || self.ui.button(cx, ids!(maximize_top_btn)).clicked(actions);
         if maximize_clicked {
-            log!("[lib] maximize clicked: stop main, open modal, begin modal_video, fullscreen window");
+            let main_pos_ms = self
+                .ui
+                .video(cx, ids!(camera_video_texture))
+                .current_position_ms() as u64;
+            self.pending_modal_seek_ms = Some(main_pos_ms);
+            log!(
+                "[lib] maximize clicked: stop main at {} ms, open modal, begin modal_video, fullscreen window",
+                main_pos_ms,
+            );
             self.ui
                 .video(cx, ids!(camera_video_texture))
                 .stop_and_cleanup_resources(cx);
@@ -295,7 +380,19 @@ impl MatchEvent for App {
             self.ui
                 .button(cx, ids!(playpause_modal_btn))
                 .set_text(cx, "Pause");
-            self.ui.window(cx, ids!(main_window)).fullscreen(cx);
+            self.pending_fullscreen = Some(cx.new_next_frame());
+        }
+        let modal_video_ref = self.ui.video(cx, ids!(modal_video));
+        if matches!(
+            actions
+                .find_widget_action(modal_video_ref.widget_uid())
+                .cast::<VideoAction>(),
+            VideoAction::PlaybackPrepared
+        ) {
+            if let Some(ms) = self.pending_modal_seek_ms.take() {
+                log!("[lib] modal_video prepared, seeking to {} ms", ms);
+                modal_video_ref.seek_to(cx, ms);
+            }
         }
         if self.ui.button(cx, ids!(playpause_modal_btn)).clicked(actions) {
             let video = self.ui.video(cx, ids!(modal_video));
@@ -305,9 +402,15 @@ impl MatchEvent for App {
                 self.ui
                     .button(cx, ids!(playpause_modal_btn))
                     .set_text(cx, "Play");
-            } else {
+            } else if video.is_paused() {
                 log!("[lib] playpause_modal_btn: resuming");
                 video.resume_playback(cx);
+                self.ui
+                    .button(cx, ids!(playpause_modal_btn))
+                    .set_text(cx, "Pause");
+            } else {
+                log!("[lib] playpause_modal_btn: begin playback");
+                video.begin_playback(cx);
                 self.ui
                     .button(cx, ids!(playpause_modal_btn))
                     .set_text(cx, "Pause");
@@ -316,19 +419,16 @@ impl MatchEvent for App {
         let close_clicked = self.ui.button(cx, ids!(close_modal_btn)).clicked(actions);
         let dismissed = self.ui.modal(cx, ids!(video_modal)).dismissed(actions);
         if close_clicked || dismissed {
-            self.ui
-                .video(cx, ids!(modal_video))
-                .stop_and_cleanup_resources(cx);
-            self.ui
-                .video(cx, ids!(camera_video_texture))
-                .begin_playback(cx);
-            self.ui
-                .button(cx, ids!(playpause_main_btn))
-                .set_text(cx, "Pause");
-            self.ui.window(cx, ids!(main_window)).disable_fullscreen(cx);
-            if close_clicked {
-                self.ui.modal(cx, ids!(video_modal)).close(cx);
-            }
+            self.close_video_modal(cx);
+        }
+    }
+
+    fn handle_key_down(&mut self, cx: &mut Cx, e: &KeyEvent) {
+        if e.key_code == KeyCode::Escape
+            && self.ui.modal(cx, ids!(video_modal)).is_open()
+        {
+            log!("[lib] Escape pressed, closing modal");
+            self.close_video_modal(cx);
         }
     }
 }
