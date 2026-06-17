@@ -1,0 +1,12 @@
+[package]
+name = "doubao-asr"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "doubao-asr"
+path = "src/main.rs"
+
+[dependencies]
+makepad-widgets = { path = "../../widgets" }
+makepad-micro-serde = { path = "../../libs/micro_serde" }

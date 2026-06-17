@@ -4,6 +4,8 @@ workspace.members = [
     "examples/hotload_ui",
     "examples/teamtalk",
     "examples/speech_to_text",
+    "examples/doubao_asr",
+    "examples/distil_whisper_onnx",
     "examples/automate",
     "examples/map",
     "examples/arracing",
