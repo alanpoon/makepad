@@ -267,7 +267,7 @@ impl App {
         state.start_recording();
         state.set_session(SessionState::Connecting);
 
-        let url = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel".to_string();
+        let url = "wss://openspeech.bytedance.com/api/v2/asr".to_string();
         let mut request = HttpRequest::new(url, HttpMethod::GET);
         request.set_header("X-Api-App-Key".to_string(), self.app_id.clone());
         request.set_header("X-Api-Access-Key".to_string(), self.access_token.clone());
