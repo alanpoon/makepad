@@ -224,3 +224,31 @@ pub struct SherpaAsrInput {
     #[rust] update_timer:      Timer,
     #[rust] mic_area:          Area,
 }
+
+impl SherpaAsrInput {
+    /// Called by the host app in `handle_startup`. Stores the shared audio state
+    /// and starts the 30fps update timer.
+    pub fn init(&mut self, cx: &mut Cx, shared: Arc<SherpaAsrShared>) {
+        self.shared = Some(shared);
+        self.update_timer = cx.start_interval(0.033);
+    }
+
+    /// Set the model directory at runtime (e.g., from an env var).
+    /// The recognizer will be loaded on the next timer tick.
+    pub fn set_model_dir(&mut self, cx: &mut Cx, path: &str) {
+        self.model_dir = path.to_string();
+        self.redraw(cx);
+    }
+
+    /// Extract this widget's action from an `Actions` list.
+    /// Use in the host app's `handle_actions`.
+    pub fn handle_action(&self, actions: &Actions) -> Option<SherpaAsrInputAction> {
+        actions
+            .find_widget_action(self.widget_uid())
+            .map(|a| a.cast::<SherpaAsrInputAction>())
+    }
+}
+
+impl WidgetMatchEvent for SherpaAsrInput {
+    fn handle_actions(&mut self, _cx: &mut Cx, _actions: &Actions, _scope: &mut Scope) {}
+}
