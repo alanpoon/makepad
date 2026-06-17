@@ -50,6 +50,8 @@ examples/speech_to_text/
     └── speech_input.rs         # DELETED
 ```
 
+**Workspace root `Cargo.toml`:** add `"libs/asr_widget"` to the `[workspace] members` array.
+
 ### `libs/asr_widget/Cargo.toml`
 
 ```toml
@@ -72,10 +74,12 @@ sherpa-onnx     = "1"
 
 ```
 Idle ──(mic click, model loaded)──► Recording
-Recording ──(mic click)──────────► Idle       (reset stream)
-Recording ──(endpoint detected)──► Recording  (emit FinalResult, reset stream, continue)
-Any ──(model_dir live field changes)──► reload recognizer → Idle
+Recording ──(mic click)──────────► Idle       (reset stream, emit RecordingStopped)
+Recording ──(endpoint detected on timer)──► Recording  (emit FinalResult, reset stream in-place, continue)
+Any ──(model_dir ≠ model_dir_loaded, detected on timer tick)──► reload recognizer → Idle
 ```
+
+**Note:** The `model_dir` change transition is polled on each timer tick (comparing `model_dir` vs `model_dir_loaded`). It is NOT event-driven — no `LiveHook` is needed.
 
 Mic button is disabled when `model_dir` is empty or the recognizer failed to load.
 No `Connecting`/`Closing` states — recognition is fully local with no network round-trip.
@@ -101,14 +105,20 @@ The audio callback (any thread) writes to `pending_samples` and `recent_samples`
 ```rust
 #[derive(Script, ScriptHook, Widget)]
 pub struct SherpaAsrInput {
+    // --- Required Makepad Widget fields ---
+    #[uid]     uid:    WidgetUid,
+    #[source]  source: ScriptObjectRef,
+    #[walk]    walk:   Walk,
+    #[layout]  layout: Layout,
+
     // --- Live fields (DSL-configurable) ---
-    #[live] pub model_dir:       String,   // path to sherpa-onnx model directory
-    #[live] pub accent_color:    Vec4,     // default #FF6600
+    #[live] pub model_dir:        String,   // path to sherpa-onnx model directory
+    #[live] pub accent_color:     Vec4,     // default #FF6600
     #[live(40.0)] pub mic_button_size: f64,
 
-    // --- Inner widgets ---
-    #[find] #[redraw] #[live] text_input:    WidgetRef,
-    #[find] #[redraw] #[live] interim_label: WidgetRef,
+    // --- Inner widgets (populated by DSL via #[find]) ---
+    #[find] #[redraw] #[live] text_input:    WidgetRef,  // TextInput for final text
+    #[find] #[redraw] #[live] interim_label: WidgetRef,  // Label for interim text (gray)
 
     // --- Draw state ---
     #[redraw] #[live] draw_mic:     DrawMicButton,
@@ -118,20 +128,56 @@ pub struct SherpaAsrInput {
     #[live(true)] #[visible] visible: bool,
 
     // --- Rust-only runtime state ---
-    #[rust] recognizer:       Option<OnlineRecognizer>,   // sherpa-onnx recognizer
-    #[rust] stream:           Option<OnlineStream>,        // current utterance stream
-    #[rust] shared:           Option<Arc<SherpaAsrShared>>,
-    #[rust] model_dir_loaded: String,   // last path successfully loaded (change detection)
+    #[rust] recognizer:        Option<OnlineRecognizer>,  // sherpa-onnx recognizer (Send+Sync)
+    #[rust] stream:            Option<OnlineStream>,       // current utterance stream (UI thread only)
+    #[rust] shared:            Option<Arc<SherpaAsrShared>>,
+    #[rust] model_dir_loaded:  String,   // last path successfully loaded (polled change detection)
     #[rust] current_amplitude: f32,
-    #[rust] update_timer:     Timer,
-    #[rust] mic_area:         Area,
-    #[rust] uid:              WidgetUid,
+    #[rust] update_timer:      Timer,
+    #[rust] mic_area:          Area,
 }
 ```
 
+**`#[uid]` vs `#[rust]`:** the `uid` field must use `#[uid]`, not `#[rust]`, so the derive macro assigns the correct `WidgetUid`. Using `#[rust]` would leave it zero, breaking all action dispatch.
+
 ---
 
-## 7. Actions
+## 7. Widget Initialization
+
+The widget is initialized by the host app in `handle_startup`:
+
+```rust
+// In App::handle_startup:
+let shared = Arc::new(SherpaAsrShared {
+    pending_samples: Mutex::new(Vec::new()),
+    recent_samples:  Mutex::new(Vec::new()),
+    is_recording:    AtomicBool::new(false),
+});
+if let Some(mut w) = self.ui.widget(cx, ids!(asr_input)).borrow_mut::<SherpaAsrInput>() {
+    w.init(cx, shared.clone());
+}
+self.shared = Some(shared);
+```
+
+`SherpaAsrInput::init(cx, shared)` stores the `Arc`, starts the 30fps timer, and sets `model_dir` from any value already applied via DSL. The recognizer is loaded lazily on the first timer tick where `model_dir` is non-empty and differs from `model_dir_loaded`.
+
+**Setting `model_dir` at runtime** (e.g., from an env var):
+
+```rust
+// Option A — apply_over with live! macro:
+self.ui.widget(cx, ids!(asr_input))
+    .apply_over(cx, live!{ model_dir: (path_string) });
+
+// Option B — expose a setter on the widget:
+// pub fn set_model_dir(&mut self, cx: &mut Cx, path: &str)
+// which calls self.model_dir = path.to_string(); self.redraw(cx);
+```
+
+The spec requires the widget to expose `pub fn set_model_dir(&mut self, cx: &mut Cx, path: &str)` for convenience (used by the updated `examples/speech_to_text`).
+
+---
+
+## 8. Actions
 
 ```rust
 #[derive(Clone, Debug, Default)]
@@ -148,18 +194,17 @@ pub enum SherpaAsrInputAction {
 
 ---
 
-## 8. Model Auto-Detection
+## 9. Model Auto-Detection
 
-Given `model_dir`, the widget globs for ONNX files and infers the model type:
+Given `model_dir`, the widget scans for ONNX files with `std::fs::read_dir` and infers the model type by filename pattern:
 
-| Files found in directory | Model type |
-|---|---|
-| `encoder*.onnx` + `decoder*.onnx` + `joiner*.onnx` + `tokens.txt` | Transducer (Zipformer, LSTM-RNN-T) |
-| `encoder*.onnx` + `ctc*.onnx` + `tokens.txt` | Streaming CTC |
-| Anything else | Error: unsupported layout |
+| Files found in directory | Model type | Config field populated |
+|---|---|---|
+| `encoder*.onnx` + `decoder*.onnx` + `joiner*.onnx` + `tokens.txt` | Transducer (Zipformer, LSTM-RNN-T) | `OnlineModelConfig::transducer` |
+| `encoder*.onnx` + `ctc*.onnx` + `tokens.txt` | Streaming CTC | `OnlineModelConfig::streaming_ctc` (field name: `ctc`) |
+| Anything else | Error | — |
 
-Configuration built from discovered paths:
-
+**Transducer config:**
 ```rust
 OnlineRecognizerConfig {
     feat_config: FeatureConfig { sample_rate: 16000, feature_dim: 80 },
@@ -177,88 +222,154 @@ OnlineRecognizerConfig {
 }
 ```
 
-Model loading is **synchronous** on the UI thread (< 500ms for Zipformer-small). Triggered when `model_dir` changes (detected by comparing `model_dir` vs `model_dir_loaded` on each timer tick).
+**Streaming CTC config:**
+```rust
+OnlineRecognizerConfig {
+    feat_config: FeatureConfig { sample_rate: 16000, feature_dim: 80 },
+    model_config: OnlineModelConfig {
+        ctc: OnlineCtcModelConfig {
+            model: ctc_onnx_path,
+        },
+        tokens: tokens_path,
+        num_threads: 1,
+        ..Default::default()
+    },
+    ..Default::default()
+}
+```
+
+Model loading is **synchronous** on the UI thread (< 500ms for Zipformer-small). It is triggered on the timer tick when `model_dir ≠ model_dir_loaded`.
 
 ---
 
-## 9. Timer Tick Logic (30fps)
+## 10. Timer Tick Logic (30fps)
 
 Called from `Widget::handle_event` on `Event::Timer`:
 
 ```
 1. If model_dir ≠ model_dir_loaded:
+     if is_recording: stop_recording(), emit RecordingStopped
      try load_recognizer(model_dir)
        → success: store recognizer, model_dir_loaded = model_dir
-       → failure: emit ModelLoadError, clear recognizer
+       → failure: emit ModelLoadError, clear recognizer, model_dir_loaded = model_dir
 
-2. If is_recording and recognizer is Some:
-   a. drain pending_samples
-   b. stream.accept_waveform(16000, &samples)
-   c. while recognizer.is_ready(&stream): recognizer.decode(&stream)
+2. If is_recording and recognizer is Some and stream is Some:
+   a. samples = drain pending_samples
+   b. stream.accept_waveform(16000, &samples)   // &mut stream
+   c. while recognizer.is_ready(&stream):
+        recognizer.decode(&mut stream)           // requires &mut OnlineStream
    d. if recognizer.is_endpoint(&stream):
-        text = recognizer.get_result(&stream).text
+        text = recognizer.get_result(&stream).text.clone()
         emit FinalResult(text)
-        recognizer.reset(&stream)   ← resets stream for next utterance
-      else:
-        emit InterimResult(recognizer.get_result(&stream).text)
+        recognizer.reset(&mut stream)            // resets stream IN-PLACE for next utterance
+      else if !recognizer.get_result(&stream).text.is_empty():
+        emit InterimResult(recognizer.get_result(&stream).text.clone())
 
 3. Smooth amplitude from recent_samples → update draw_mic.amplitude
 4. redraw(cx)
 ```
 
-`OnlineStream` is created via `recognizer.create_stream()` at recording start and replaced on each endpoint.
+**`&mut OnlineStream` requirement:** `decode`, `reset`, and `accept_waveform` all require `&mut OnlineStream`. `is_ready`, `is_endpoint`, and `get_result` take `&OnlineStream`. The stream is stored as `Option<OnlineStream>` in the widget and accessed via `self.stream.as_mut().unwrap()`.
+
+**Stream lifecycle:** `OnlineStream` is created via `recognizer.create_stream()` at recording start. On each endpoint, `recognizer.reset(&mut stream)` resets the existing stream **in-place** — a new stream is NOT created. The stream is dropped only when recording stops.
+
+**Unprocessed audio between ticks:** `accept_waveform` pushes samples into the stream's internal queue. Any samples not yet decoded (i.e., `is_ready` returned false) remain in the stream's buffer and are decoded on the next tick. No extra buffering is needed in the widget.
 
 ---
 
-## 10. Audio Processing
+## 11. Audio Processing
 
 Same resampling logic as `speech_to_text` and `doubao_asr`:
-- Linear interpolation to 16 kHz mono
+- Linear interpolation resample to 16 kHz mono
 - `recent_samples` capped at 1600 samples (100ms)
 - `pending_samples` accumulates only when `is_recording == true`
 
-Function: `pub fn process_audio_input(shared: &Arc<SherpaAsrShared>, info: AudioInfo, buf: &AudioBuffer)`
+```rust
+pub fn process_audio_input(
+    shared: &Arc<SherpaAsrShared>,
+    info: AudioInfo,
+    buf: &AudioBuffer,
+)
+```
 
 ---
 
-## 11. Updated `examples/speech_to_text`
+## 12. Updated `examples/speech_to_text`
 
-`main.rs` is simplified significantly:
-- Import `SherpaAsrInput`, `SherpaAsrInputAction`, `process_audio_input` from `makepad_asr_widget`
-- `script_mod!` block: register shaders + widget, same UI layout as today
-- `handle_startup`: init widget with `model_dir` from env var `MAKEPAD_ASR_MODEL_DIR`
+`main.rs` changes:
+- Add `use makepad_asr_widget::{SherpaAsrInput, SherpaAsrInputAction, SherpaAsrShared, process_audio_input};`
+- `script_mod!` block: register shaders + widget (see Section 13 for required DSL)
+- In `handle_startup`:
+  - Read `MAKEPAD_ASR_MODEL_DIR` env var
+  - Create `Arc<SherpaAsrShared>`, call `widget.init(cx, shared.clone())`
+  - Call `widget.set_model_dir(cx, &model_dir_path)` if env var is set
 - `handle_audio_devices`: wire `cx.audio_input()` with `process_audio_input`
-- `handle_actions`: match `SherpaAsrInputAction` to update status label and TextInput
+- `handle_actions`: match `SherpaAsrInputAction` variants to update status label and TextInput
 
 `speech_input.rs` is deleted entirely — all widget logic lives in `libs/asr_widget/`.
 
 ---
 
-## 12. Draw Structs
+## 13. Draw Structs and Shader Registration
 
-`DrawMicButton` and `DrawSpinner` are moved from `speech_to_text` into `libs/asr_widget/src/sherpa_asr_input.rs` and made `pub`. Shader registration (`set_type_default()`) remains in the app's `script_mod!` block — the widget crate exports the Rust structs only, not DSL.
+`DrawMicButton` and `DrawSpinner` are defined in `libs/asr_widget/src/sherpa_asr_input.rs` and made `pub`. The widget crate exports the Rust structs only.
+
+**Every host app** must register the shaders in its own `script_mod!` block. This is a known limitation — DSL shader code is not portable across crates. The `examples/speech_to_text` `script_mod!` block must include:
+
+```
+set_type_default() do #(DrawMicButton::script_shader(vm)) { /* pixel shader */ }
+set_type_default() do #(DrawSpinner::script_shader(vm))   { /* pixel shader */ }
+mod.widgets.SherpaAsrInputBase = #(SherpaAsrInput::register_widget(vm))
+mod.widgets.SherpaAsrInput = set_type_default() do mod.widgets.SherpaAsrInputBase {
+    width: Fill
+    height: Fit
+    flow: Down
+    spacing: 10
+    accent_color: #FF6600
+    mic_button_size: 40.0
+    draw_spinner.color: #FF6600
+
+    text_input := TextInput {
+        width: Fill
+        height: 50
+        empty_text: "Type or speak..."
+        draw_bg.border_color: #FF6600
+        draw_bg.border_radius: 25.0
+        padding: {left: 15, right: 55, top: 12, bottom: 12}
+    }
+
+    interim_label := Label {
+        width: Fill
+        height: Fit
+        text: ""
+        draw_text.color: #888888
+        draw_text.text_style.font_size: 12
+    }
+}
+```
+
+The `interim_label` child is a `Label` widget with id `interim_label`. The `#[find]` attribute on `SherpaAsrInput::interim_label` locates it by this id at layout time.
 
 ---
 
-## 13. Error Handling
+## 14. Error Handling
 
 | Scenario | Behavior |
 |---|---|
 | `model_dir` empty | Mic button disabled; no action emitted |
-| Directory not found | `ModelLoadError("model not found: <path>")` |
+| Directory not found | `ModelLoadError("model not found: <path>")` emitted; mic disabled |
 | Directory found, no recognized ONNX layout | `ModelLoadError("unsupported model layout in <path>")` |
 | sherpa-onnx returns error on load | `ModelLoadError(<sherpa error message>)` |
-| `model_dir` changes during recording | Stop recording, reload recognizer, emit `RecordingStopped` |
-| Audio arrives before model loaded | Samples discarded (is_recording is false) |
+| `model_dir` changes during recording | Stop recording, emit `RecordingStopped`, reload recognizer |
+| Audio arrives before model loaded | Samples discarded (`is_recording` is false) |
 
 ---
 
-## 14. Recommended Test Model
+## 15. Recommended Test Model
 
 ```bash
 # English Zipformer streaming model (~80MB)
-wget https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/\
-sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2
+wget https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2
 tar xf sherpa-onnx-streaming-zipformer-en-2023-06-26.tar.bz2
 
 export MAKEPAD_ASR_MODEL_DIR=$(pwd)/sherpa-onnx-streaming-zipformer-en-2023-06-26
@@ -267,10 +378,10 @@ cargo run -p makepad-example-speech-to-text
 
 ---
 
-## 15. Manual Testing Plan
+## 16. Manual Testing Plan
 
 1. **No model dir:** Run without env var → mic disabled, no crash
-2. **Wrong path:** Set invalid path → `ModelLoadError` in status label
-3. **Happy path:** Set valid Zipformer path → click mic → speak English → interim text appears → endpoint reached → final text in TextInput
-4. **Multi-utterance:** Keep recording past first endpoint → new utterance accumulates in TextInput
-5. **Live reload:** Change `model_dir` mid-session → recording stops, new model loads, mic re-enables
+2. **Wrong path:** Set invalid path → `ModelLoadError` in status label, mic disabled
+3. **Happy path:** Set valid Zipformer path → click mic → speak English → interim gray text → endpoint reached → final text appended to TextInput
+4. **Multi-utterance:** Keep recording past first endpoint → new utterance accumulates without stopping mic
+5. **Model reload:** Change env var path and restart → new model loads, different model works
