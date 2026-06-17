@@ -99,3 +99,16 @@ pub struct DrawSpinner {
     #[live]  pub color:      Vec4,
     #[live]  pub time:       f32,
 }
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+
+#[derive(Clone, Debug, Default)]
+pub enum SherpaAsrInputAction {
+    #[default]
+    None,
+    RecordingStarted,
+    RecordingStopped,
+    InterimResult(String),
+    FinalResult(String),
+    ModelLoadError(String),
+}
