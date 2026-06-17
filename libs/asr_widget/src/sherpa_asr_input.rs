@@ -80,3 +80,22 @@ pub fn process_audio_input(
         shared.pending_samples.lock().unwrap().extend_from_slice(&resampled);
     }
 }
+
+// ─── Draw structs (shader registration in host app's script_mod!) ─────────────
+
+#[derive(Script, ScriptHook)]
+#[repr(C)]
+pub struct DrawMicButton {
+    #[deref] pub draw_super:   DrawQuad,
+    #[live]  pub is_recording: f32,
+    #[live]  pub amplitude:    f32,
+    #[live]  pub accent_color: Vec4,
+}
+
+#[derive(Script, ScriptHook)]
+#[repr(C)]
+pub struct DrawSpinner {
+    #[deref] pub draw_super: DrawQuad,
+    #[live]  pub color:      Vec4,
+    #[live]  pub time:       f32,
+}
