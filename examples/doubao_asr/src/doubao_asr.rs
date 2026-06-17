@@ -198,16 +198,16 @@ pub fn build_audio_frame(pcm_bytes: &[u8], is_last: bool) -> Vec<u8> {
 // ── Response parser ───────────────────────────────────────────────────────────
 
 #[derive(DeJson, Default)]
-struct DoubaoResult {
-    text: Option<String>,
-    is_final: Option<bool>,
+pub struct DoubaoResult {
+    pub text: Option<String>,
+    pub is_final: Option<bool>,
 }
 
 #[derive(DeJson, Default)]
-struct DoubaoResponse {
-    code: Option<i64>,
-    message: Option<String>,
-    result: Option<DoubaoResult>,
+pub struct DoubaoResponse {
+    pub code: Option<i64>,
+    pub message: Option<String>,
+    pub result: Option<DoubaoResult>,
 }
 
 pub fn parse_response_frame(data: &[u8]) -> Option<DoubaoResponse> {
