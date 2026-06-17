@@ -136,13 +136,13 @@ pub fn process_audio_input(
 // Transcription (ONNX backend)
 // ============================================================================
 
-pub fn transcribe_async(state: Arc<SpeechRecordingState>) {
+pub fn transcribe_async(cx: &mut Cx, state: Arc<SpeechRecordingState>) {
     let samples = state.get_samples();
     if samples.is_empty() {
         return;
     }
 
-    std::thread::spawn(move || {
+    cx.spawn_thread(move || {
         let model_dir = match onnx_transcriber::find_model_dir() {
             Some(d) => d,
             None => {
@@ -329,7 +329,7 @@ impl SpeechInput {
 
             if !state.get_samples().is_empty() {
                 self.is_transcribing = true;
-                transcribe_async(state);
+                transcribe_async(cx, state);
                 cx.widget_action(self.widget_uid(), SpeechInputAction::TranscriptionStarted);
             }
 
