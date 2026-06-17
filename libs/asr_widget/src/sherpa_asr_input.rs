@@ -114,6 +114,81 @@ pub enum SherpaAsrInputAction {
     ModelLoadError(String),
 }
 
+// ─── Model loading ────────────────────────────────────────────────────────────
+//
+// API notes (sherpa-onnx 1.13.3):
+//   - OnlineRecognizer::create(&config) -> Option<OnlineRecognizer>
+//   - FeatureConfig lives in sherpa_onnx_sys; OnlineRecognizerConfig::default()
+//     already sets sample_rate=16000, feature_dim=80
+//   - enable_endpoint is a bool field on OnlineRecognizerConfig
+//   - Transducer fields (encoder/decoder/joiner) are Option<String>
+//   - CTC model type is OnlineZipformer2CtcModelConfig { model: Option<String> }
+//     (there is no standalone OnlineCtcModelConfig in this version)
+
+fn load_recognizer(model_dir: &str) -> Result<OnlineRecognizer, String> {
+    use sherpa_onnx::{
+        OnlineRecognizerConfig, OnlineModelConfig,
+        OnlineTransducerModelConfig, OnlineZipformer2CtcModelConfig,
+    };
+    use std::fs;
+
+    let entries = fs::read_dir(model_dir)
+        .map_err(|_| format!("model not found: {}", model_dir))?;
+
+    let mut encoder = None;
+    let mut decoder = None;
+    let mut joiner  = None;
+    let mut ctc     = None;
+    let mut tokens  = None;
+
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let path = entry.path().to_string_lossy().to_string();
+        if name.starts_with("encoder") && name.ends_with(".onnx")      { encoder = Some(path); }
+        else if name.starts_with("decoder") && name.ends_with(".onnx") { decoder = Some(path); }
+        else if name.starts_with("joiner")  && name.ends_with(".onnx") { joiner  = Some(path); }
+        else if name.starts_with("ctc")     && name.ends_with(".onnx") { ctc     = Some(path); }
+        else if name == "tokens.txt"                                    { tokens  = Some(path); }
+    }
+
+    let tokens = tokens.ok_or_else(||
+        format!("tokens.txt not found in model dir: {}", model_dir)
+    )?;
+
+    let model_config = if let (Some(enc), Some(dec), Some(joi)) = (encoder, decoder, joiner) {
+        OnlineModelConfig {
+            transducer: OnlineTransducerModelConfig {
+                encoder: Some(enc),
+                decoder: Some(dec),
+                joiner:  Some(joi),
+            },
+            tokens: Some(tokens),
+            num_threads: 1,
+            ..Default::default()
+        }
+    } else if let Some(ctc_path) = ctc {
+        OnlineModelConfig {
+            zipformer2_ctc: OnlineZipformer2CtcModelConfig {
+                model: Some(ctc_path),
+            },
+            tokens: Some(tokens),
+            num_threads: 1,
+            ..Default::default()
+        }
+    } else {
+        return Err(format!("unsupported model layout in {}", model_dir));
+    };
+
+    let config = OnlineRecognizerConfig {
+        model_config,
+        enable_endpoint: true,
+        ..Default::default()
+    };
+
+    OnlineRecognizer::create(&config)
+        .ok_or_else(|| format!("sherpa-onnx failed to create recognizer from {}", model_dir))
+}
+
 // ─── Widget ───────────────────────────────────────────────────────────────────
 
 #[derive(Script, ScriptHook, Widget)]
