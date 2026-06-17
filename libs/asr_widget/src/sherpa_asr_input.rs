@@ -152,7 +152,7 @@ fn load_recognizer(model_dir: &str) -> Result<OnlineRecognizer, String> {
     }
 
     let tokens = tokens.ok_or_else(||
-        format!("tokens.txt not found in model dir: {}", model_dir)
+        format!("unsupported model layout in {}", model_dir)
     )?;
 
     let model_config = if let (Some(enc), Some(dec), Some(joi)) = (encoder, decoder, joiner) {
