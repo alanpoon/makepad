@@ -247,13 +247,14 @@ impl MatchEvent for App {
     }
 
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        if let Some(asr_widget) = self.ui.widget(cx, ids!(asr_input)).borrow::<DoubaoAsrInput>() {
-            if let Some(action) = asr_widget.handle_action(actions) {
-                match action {
-                    DoubaoAsrInputAction::RecordingStarted => self.on_recording_started(cx),
-                    DoubaoAsrInputAction::RecordingStopped => self.on_recording_stopped(cx),
-                    _ => {}
-                }
+        let action = self.ui.widget(cx, ids!(asr_input))
+            .borrow::<DoubaoAsrInput>()
+            .and_then(|w| w.handle_action(actions));
+        if let Some(action) = action {
+            match action {
+                DoubaoAsrInputAction::RecordingStarted => self.on_recording_started(cx),
+                DoubaoAsrInputAction::RecordingStopped => self.on_recording_stopped(cx),
+                _ => {}
             }
         }
     }
@@ -265,6 +266,7 @@ impl App {
         let state = match &self.asr_state { Some(s) => s.clone(), None => return };
         let _ = cx.net.ws_close(self.ws_id);
         state.start_recording();
+        *state.interim_text.lock().unwrap() = String::new();
         state.set_session(SessionState::Connecting);
 
         let url = "wss://openspeech.bytedance.com/api/v2/asr".to_string();
