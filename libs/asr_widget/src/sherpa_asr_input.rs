@@ -247,6 +247,99 @@ impl SherpaAsrInput {
             .find_widget_action(self.widget_uid())
             .map(|a| a.cast::<SherpaAsrInputAction>())
     }
+
+    fn timer_tick(&mut self, cx: &mut Cx) {
+        // ── 1. Detect model_dir change and (re)load recognizer ─────────────────
+        if self.model_dir != self.model_dir_loaded {
+            if let Some(shared) = &self.shared {
+                if shared.is_recording.load(Ordering::SeqCst) {
+                    shared.is_recording.store(false, Ordering::SeqCst);
+                    self.stream = None;
+                    cx.widget_action(self.widget_uid(), SherpaAsrInputAction::RecordingStopped);
+                }
+            }
+            if self.model_dir.is_empty() {
+                self.recognizer = None;
+            } else {
+                match load_recognizer(&self.model_dir) {
+                    Ok(rec) => {
+                        self.recognizer = Some(rec);
+                    }
+                    Err(e) => {
+                        self.recognizer = None;
+                        cx.widget_action(self.widget_uid(), SherpaAsrInputAction::ModelLoadError(e));
+                    }
+                }
+            }
+            self.model_dir_loaded = self.model_dir.clone();
+        }
+
+        // ── 2. Recognition loop ─────────────────────────────────────────────────
+        let is_recording = self.shared.as_ref()
+            .map(|s| s.is_recording.load(Ordering::SeqCst))
+            .unwrap_or(false);
+
+        if is_recording {
+            if self.recognizer.is_some() && self.stream.is_some() && self.shared.is_some() {
+                let samples = self.shared.as_ref().unwrap().drain_pending();
+                if !samples.is_empty() {
+                    self.stream.as_ref().unwrap().accept_waveform(16000, &samples);
+                }
+                while self.recognizer.as_ref().unwrap().is_ready(self.stream.as_ref().unwrap()) {
+                    self.recognizer.as_ref().unwrap().decode(self.stream.as_ref().unwrap());
+                }
+                let result_opt = self.recognizer.as_ref().unwrap().get_result(self.stream.as_ref().unwrap());
+                let is_endpoint = self.recognizer.as_ref().unwrap().is_endpoint(self.stream.as_ref().unwrap());
+                if let Some(result) = result_opt {
+                    let result_text = result.text.clone();
+                    if is_endpoint {
+                        self.interim_label.set_text(cx, "");
+                        cx.widget_action(
+                            self.widget_uid(),
+                            SherpaAsrInputAction::FinalResult(result_text),
+                        );
+                        self.recognizer.as_ref().unwrap().reset(self.stream.as_ref().unwrap());
+                    } else if !result_text.is_empty() {
+                        self.interim_label.set_text(cx, &result_text);
+                        cx.widget_action(
+                            self.widget_uid(),
+                            SherpaAsrInputAction::InterimResult(result_text),
+                        );
+                    }
+                }
+            }
+        } else {
+            self.interim_label.set_text(cx, "");
+        }
+
+        // ── 3. Update amplitude visualization ──────────────────────────────────
+        let amplitude = self.shared.as_ref()
+            .map(|s| s.calculate_amplitude())
+            .unwrap_or(0.0);
+        self.current_amplitude = self.current_amplitude * 0.7 + amplitude * 0.3;
+
+        self.redraw(cx);
+    }
+
+    fn toggle_recording(&mut self, cx: &mut Cx) {
+        let shared = match &self.shared { Some(s) => s.clone(), None => return };
+        if self.recognizer.is_none() { return; }
+
+        if shared.is_recording.load(Ordering::SeqCst) {
+            shared.is_recording.store(false, Ordering::SeqCst);
+            self.stream = None;
+            self.interim_label.set_text(cx, "");
+            cx.widget_action(self.widget_uid(), SherpaAsrInputAction::RecordingStopped);
+        } else {
+            let stream = self.recognizer.as_ref().unwrap().create_stream();
+            self.stream = Some(stream);
+            self.interim_label.set_text(cx, "");
+            shared.pending_samples.lock().unwrap().clear();
+            shared.is_recording.store(true, Ordering::SeqCst);
+            cx.widget_action(self.widget_uid(), SherpaAsrInputAction::RecordingStarted);
+        }
+        self.redraw(cx);
+    }
 }
 
 impl WidgetMatchEvent for SherpaAsrInput {
@@ -284,7 +377,19 @@ impl Widget for SherpaAsrInput {
     }
 
     fn handle_event(&mut self, cx: &mut Cx, event: &Event, _scope: &mut Scope) {
-        // implemented in Task 9
-        let _ = (cx, event);
+        if !self.visible { return; }
+
+        if let Event::Timer(te) = event {
+            if self.update_timer.is_timer(te).is_some() {
+                self.timer_tick(cx);
+            }
+        }
+
+        let model_ready = self.recognizer.is_some();
+        if model_ready {
+            if let Hit::FingerDown(_) = event.hits(cx, self.mic_area) {
+                self.toggle_recording(cx);
+            }
+        }
     }
 }
