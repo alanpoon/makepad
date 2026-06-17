@@ -87,8 +87,10 @@ impl ScriptHeap {
             object.tag.set_proto_fwd(proto_fwd);
             object.proto = proto;
             // only copy vec if we are 'auto' otherwise we proto inherit normally
+            // skip NIL-keyed entries: those are vararg overflows from the outer call scope
+            // and must not be inherited as typed parameter slots by inner closures
             if copy_vec_from_auto_proto && proto_object.tag.is_auto() {
-                object.vec.extend_from_slice(&proto_object.vec);
+                object.vec.extend(proto_object.vec.iter().filter(|e| !e.key.is_nil()).copied());
             }
             obj
         } else {
@@ -98,7 +100,7 @@ impl ScriptHeap {
             object.tag.set_proto_fwd(proto_fwd);
             let proto_object = &self.objects[proto_ptr];
             if copy_vec_from_auto_proto && proto_object.tag.is_auto() {
-                object.vec.extend_from_slice(&proto_object.vec);
+                object.vec.extend(proto_object.vec.iter().filter(|e| !e.key.is_nil()).copied());
             }
             let (_, generation) = self.objects.push(object);
             ScriptObject::new(index, generation)
