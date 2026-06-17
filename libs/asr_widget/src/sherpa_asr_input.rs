@@ -252,3 +252,39 @@ impl SherpaAsrInput {
 impl WidgetMatchEvent for SherpaAsrInput {
     fn handle_actions(&mut self, _cx: &mut Cx, _actions: &Actions, _scope: &mut Scope) {}
 }
+
+impl Widget for SherpaAsrInput {
+    fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, walk: Walk) -> DrawStep {
+        if !self.visible { return DrawStep::done(); }
+
+        self.draw_mic.accent_color = self.accent_color;
+        let button_walk = Walk::fixed(self.mic_button_size, self.mic_button_size);
+
+        let is_loading = !self.model_dir.is_empty()
+            && self.model_dir != self.model_dir_loaded
+            && self.recognizer.is_none();
+
+        if is_loading {
+            self.draw_spinner.time = cx.time() as f32;
+            let _ = self.draw_spinner.draw_walk(cx, button_walk);
+        } else {
+            let is_recording = self.shared.as_ref()
+                .map(|s| s.is_recording.load(Ordering::SeqCst))
+                .unwrap_or(false);
+            self.draw_mic.is_recording = if is_recording { 1.0 } else { 0.0 };
+            self.draw_mic.amplitude = self.current_amplitude;
+            let _ = self.draw_mic.draw_walk(cx, button_walk);
+            self.mic_area = self.draw_mic.area();
+        }
+
+        let _ = self.text_input.draw_walk(cx, scope, walk);
+        let _ = self.interim_label.draw_walk(cx, scope, Walk::default());
+
+        DrawStep::done()
+    }
+
+    fn handle_event(&mut self, cx: &mut Cx, event: &Event, _scope: &mut Scope) {
+        // implemented in Task 9
+        let _ = (cx, event);
+    }
+}
