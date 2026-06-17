@@ -46,7 +46,14 @@ examples/doubao_asr/
 makepad-widgets = { path = "../../widgets", version = "2.0.0" }
 ```
 
-No new external crates. The WebSocket uses Makepad's built-in `cx.web_socket_open()` / `cx.web_socket_send_binary()` + `NSURLSession` on macOS (TLS supported).
+No new external crates. The WebSocket uses `cx.net.ws_open()` and `cx.net.ws_send()` from `NetworkRuntime` (the `pub net: Arc<NetworkRuntime>` field on `Cx`). On macOS the network backend uses `NSURLSession` which supports TLS (`wss://`) natively.
+
+**Import path for `WsSend` / `WsMessage`:**
+```rust
+use makepad_widgets::makepad_platform::makepad_network::{WsSend, WsMessage};
+```
+
+The `NetworkResponse` variants (`WsOpened`, `WsMessage`, `WsClosed`, `WsError`) arrive automatically via `Event::NetworkResponses` — the Makepad event loop calls `dispatch_network_runtime_events()` which polls `cx.net.try_recv()` on every frame.
 
 ---
 
@@ -64,12 +71,26 @@ Mic button is disabled during `Connecting` and `Closing`.
 
 ---
 
-## 5. Shared State (`Arc<DoubaoAsrState>`)
+## 5. Session State Enum
+
+```rust
+pub enum SessionState {
+    Idle,
+    Connecting,   // ws_open called, waiting for WsOpened
+    Streaming,    // WsOpened received, config sent, audio flowing
+    Closing,      // EOS frame sent, waiting for final WsMessage
+    Error(String),
+}
+```
+
+Auto-transition: `Error` → `Idle` on the next timer tick (one ~33ms cycle is sufficient to ensure the status label has been redrawn before clearing the error).
+
+## 5b. Shared State (`Arc<DoubaoAsrState>`)
 
 ```rust
 pub struct DoubaoAsrState {
     pub session:          Mutex<SessionState>,   // enum above
-    pub pending_samples:  Mutex<Vec<f32>>,       // PCM waiting to be sent
+    pub pending_samples:  Mutex<Vec<f32>>,       // PCM waiting to be sent (drained on timer)
     pub recent_samples:   Mutex<Vec<f32>>,       // last 100ms for amplitude
     pub confirmed_text:   Mutex<String>,          // final, committed text
     pub interim_text:     Mutex<String>,          // latest partial result
@@ -78,7 +99,9 @@ pub struct DoubaoAsrState {
 }
 ```
 
-The audio callback writes to `pending_samples` and `recent_samples`. The main event handler reads/drains `pending_samples` on every timer tick and sends it over WebSocket. The UI timer reads `confirmed_text`, `interim_text`, and `error` to update labels.
+The audio callback writes to `pending_samples` and `recent_samples`. The widget's `update_state()` method (called from its 30fps timer) drains `pending_samples`, encodes it as PCM i16, and sends it via `cx.net.ws_send()`. The same timer tick also reads `confirmed_text`, `interim_text`, and `error` to update the UI labels.
+
+On any transition to `Idle` or `Error`, `pending_samples` is cleared to prevent stale audio being sent on the next session.
 
 ---
 
@@ -110,9 +133,20 @@ Bytes 8+:  payload
   "user": { "uid": "makepad_doubao_asr" },
   "audio": { "format": "pcm", "rate": 16000, "encoding": "raw",
               "bits": 16, "channel": 1, "codec": "raw" },
-  "request": { "reqid": "{uuid}", "sequence": 1 }
+  "request": { "reqid": "{reqid}", "sequence": 1 }
 }
 ```
+
+**`reqid` generation** (no `uuid` crate available): use a simple timestamp-based hex string:
+```rust
+fn new_reqid() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let d = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    format!("{:016x}{:08x}", d.as_secs(), d.subsec_nanos())
+}
+```
+
+**`sequence` field**: only present in the config JSON frame (the initial full-client-request). Audio-only binary frames (`0x20` / `0x22`) carry no JSON payload and thus no `sequence` field. The server handles sequencing internally from the frame headers.
 
 ### Server response
 
@@ -136,12 +170,26 @@ Response frames use the same 8-byte header. Skip the header and parse the payloa
 
 ## 7. Audio Processing
 
-Reuse `process_audio_input()` from `speech_to_text`:
+Port `process_audio_input()` from `speech_to_text` (same logic, different struct target):
 - Resample any input sample rate → 16 kHz mono using linear interpolation
 - Append to `pending_samples` only when `is_recording == true`
-- Always update `recent_samples` (last 100ms) for amplitude visualization
+- Always update `recent_samples` (last 100ms for amplitude visualization, capped at 1600 samples)
 
-PCM encoding: convert `f32 [-1,1]` → `i16` by `(sample * 32767.0).clamp(-32768.0, 32767.0) as i16`, write as little-endian bytes.
+The field is named `pending_samples` (not `accumulated_samples` as in `speech_to_text`) to reflect that samples are streamed continuously rather than held until end-of-recording.
+
+**PCM encoding** (done when draining on the timer, not in the audio callback):
+```rust
+fn f32_slice_to_pcm_i16_le(samples: &[f32]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(samples.len() * 2);
+    for &s in samples {
+        let i = (s * 32767.0).clamp(-32768.0, 32767.0) as i16;
+        out.extend_from_slice(&i.to_le_bytes());
+    }
+    out
+}
+```
+
+**Audio chunk size**: drain all samples in `pending_samples` on each timer tick (~33ms at 30fps = ~528 samples at 16kHz). This produces chunks of variable size. VolcEngine's v2 streaming API accepts variable-size audio chunks; there is no enforced minimum. Empty drains (during `Connecting` or `Idle`) produce no `ws_send` call.
 
 ---
 
@@ -151,23 +199,38 @@ PCM encoding: convert `f32 [-1,1]` → `i16` by `(sample * 32767.0).clamp(-32768
 
 ```rust
 pub struct DoubaoAsrInput {
-    uid: WidgetUid, source: ScriptObjectRef,
-    walk: Walk, layout: Layout,
-    #[find] text_input: WidgetRef,         // confirmed text
-    #[find] interim_label: WidgetRef,      // interim text (gray)
-    draw_mic: DrawMicButton,               // same shader as speech_to_text
-    draw_spinner: DrawSpinner,             // same shader
-    draw_bg: DrawQuad,
-    visible: bool,
-    accent_color: Vec4,
-    mic_button_size: f64,
-    state: Option<Arc<DoubaoAsrState>>,
-    current_amplitude: f32,
-    is_busy: bool,                         // true during Connecting/Closing
-    update_timer: Timer,
-    mic_area: Area,
+    #[uid]    uid: WidgetUid,
+    #[source] source: ScriptObjectRef,
+    #[walk]   walk: Walk,
+    #[layout] layout: Layout,
+    #[find] #[redraw] #[live] text_input: WidgetRef,    // confirmed text
+    #[find] #[redraw] #[live] interim_label: WidgetRef, // interim text (gray)
+    #[redraw] #[live] draw_mic: DrawMicButton,
+    #[redraw] #[live] draw_spinner: DrawSpinner,
+    #[redraw] #[live] draw_bg: DrawQuad,
+    #[live(true)] #[visible] visible: bool,
+    #[live] accent_color: Vec4,
+    #[live(40.0)] mic_button_size: f64,
+    #[rust] state: Option<Arc<DoubaoAsrState>>,
+    #[rust] net_ref: Option<Arc<NetworkRuntime>>,  // clone of cx.net, set via init()
+    #[rust] current_amplitude: f32,
+    #[rust] update_timer: Timer,
+    #[rust] mic_area: Area,
 }
 ```
+
+`is_busy` is derived on-the-fly from `state.session` (check for `Connecting | Closing`); it is not a separate stored field.
+
+### Timer ownership and NetworkRuntime access
+
+The widget owns `update_timer` (started in `init(cx)`). The App calls `widget.init(cx)` in `handle_startup`, which also stores `cx.net.clone()` in `net_ref`. The widget's `update_state(cx)` drains `pending_samples` and sends audio via `self.net_ref.as_ref().unwrap().ws_send(ws_id, WsSend::Binary(pcm_bytes))`.
+
+The `ws_id` must also be available to `update_state` — it is passed as a parameter:
+```rust
+fn update_state(&mut self, cx: &mut Cx, ws_id: LiveId) { ... }
+```
+
+The App calls `widget.update_state(cx, self.ws_id)` from its `handle_event` timer arm (after routing via `self.match_event(cx, event)`).
 
 ### Actions
 
@@ -192,29 +255,34 @@ pub enum DoubaoAsrInputAction {
 ### Rust struct
 
 ```rust
+#[derive(Script, ScriptHook)]
 pub struct App {
-    ui: WidgetRef,
-    ws_id: LiveId,                          // socket identity for web_socket_open
-    asr_state: Option<Arc<DoubaoAsrState>>,
-    app_id: String,
-    access_token: String,
-    audio_initialized: bool,
+    #[live] ui: WidgetRef,
+    #[rust] ws_id: LiveId,          // MUST be live_id!(doubao_asr_socket) — non-zero
+    #[rust] asr_state: Option<Arc<DoubaoAsrState>>,
+    #[rust] app_id: String,
+    #[rust] access_token: String,
+    #[rust] audio_initialized: bool,
 }
 ```
+
+**Socket ID**: always use `live_id!(doubao_asr_socket)` (evaluated at compile time to a non-zero hash). The internal studio WebSocket uses socket ID `0`; using `LiveId(0)` or `LiveId::empty()` will silently swallow all ASR responses.
 
 ### Event handling
 
 | Event | Action |
 |-------|--------|
-| `handle_startup` | Read env vars; init `DoubaoAsrState`; start audio |
-| `handle_audio_devices` | `cx.use_audio_inputs()`; wire `cx.audio_input()` callback |
-| `DoubaoAsrInputAction::RecordingStarted` | Build `HttpRequest` for `wss://...`; set auth headers; `cx.web_socket_open(ws_id, request)` |
-| `DoubaoAsrInputAction::RecordingStopped` | Send last (empty) audio frame with `0x22` type |
-| `Event::NetworkResponses::WsOpened` | Send config JSON binary frame |
-| `Event::NetworkResponses::WsMessage` | Parse → update `confirmed_text` / `interim_text` |
-| `Event::NetworkResponses::WsError` | Set `error` in state |
-| `Event::NetworkResponses::WsClosed` | Set session state to Idle |
-| Timer | Drain `pending_samples` → send audio frame |
+| `handle_startup` | Read env vars; init `DoubaoAsrState` + pass `Arc<NetworkRuntime>` to widget; start audio |
+| `handle_audio_devices` | `cx.use_audio_inputs(devices.default_input())`; wire `cx.audio_input()` callback |
+| `DoubaoAsrInputAction::RecordingStarted` | Build `HttpRequest` for `wss://...`; set auth headers; call `cx.net.ws_open(ws_id, request)` |
+| `DoubaoAsrInputAction::RecordingStopped` | Send EOS binary frame (type `0x22`, empty payload) via `cx.net.ws_send()`; after this, no more audio frames are sent |
+| `Event::NetworkResponses` with `WsOpened {socket_id}` matching `ws_id` | Send config JSON binary frame via `cx.net.ws_send()`; set session to `Streaming` |
+| `Event::NetworkResponses` with `WsMessage {socket_id, message: WsMessage::Binary(data)}` | Parse response; update `confirmed_text` / `interim_text` |
+| `Event::NetworkResponses` with `WsError` | Set `error` in state; set session to `Error` |
+| `Event::NetworkResponses` with `WsClosed` in `Streaming` state | Treat as error ("Session closed unexpectedly"); set session to `Error` |
+| `Event::NetworkResponses` with `WsClosed` in `Closing` state | Set session to `Idle` (normal end) |
+
+The widget's 30fps timer handles UI refresh and audio draining (not a separate App-level timer).
 
 ### WebSocket authentication headers
 
@@ -223,7 +291,16 @@ X-Api-App-Key: {DOUBAO_APP_ID}
 X-Api-Access-Key: {DOUBAO_ACCESS_TOKEN}
 ```
 
-Set via `request.set_header()` before `cx.web_socket_open()`.
+Set via `request.set_header()` before `cx.net.ws_open()`. The credentials are also embedded in the config JSON payload (`app.appid` and `app.token`). Both are sent to satisfy different VolcEngine endpoint configurations.
+
+### Accumulating text across sessions
+
+When appending a final result to the TextInput, always read the current TextInput text first and append to it — do not overwrite. This preserves any text the user has manually typed or edited between sessions:
+```rust
+let existing = self.ui.text_input(cx, ids!(asr_input.text_input)).text();
+let new_text = format!("{}{}", existing, final_text);
+self.ui.text_input(cx, ids!(asr_input.text_input)).set_text(cx, &new_text);
+```
 
 ---
 
@@ -241,18 +318,24 @@ Window (700×300, title: "Doubao ASR — Speech to Text")
 
 Accent color: `#00AAFF` (blue, to visually distinguish from the orange Whisper example).
 
+`interim_label` uses `height: Fit` so it expands for multi-line Chinese ASR output without clipping.
+
 ---
 
 ## 11. Error Handling
 
 | Scenario | Behavior |
 |---|---|
-| Missing env vars at startup | Status: "Set DOUBAO_APP_ID and DOUBAO_ACCESS_TOKEN"; mic disabled |
-| `WsError` from Makepad | State → Error; status label shows message; mic re-enabled after 1 timer tick |
-| `code != 1000` in server JSON | Extract `message` field; show in status label; state → Idle |
-| Recording < 0.1s audio | Don't open WebSocket; status: "Recording too short" |
-| `WsClosed` during Streaming | Treat as error; re-enable mic |
-| Parse failure on server frame | Log warning; ignore frame (don't crash) |
+| Missing env vars at startup | Status: "Set DOUBAO_APP_ID and DOUBAO_ACCESS_TOKEN"; mic button click is a no-op |
+| `WsError` from Makepad | Session → `Error(message)`; status shows message; next timer tick → `Idle`; mic re-enabled |
+| `code != 1000` in server JSON response | Extract `message` field; session → `Error(message)`; mic re-enabled on next tick |
+| Recording < 1600 samples (< 100ms audio) | Skip `ws_open`; status: "Recording too short" |
+| `WsClosed` during `Streaming` state | Session → `Error("Session closed unexpectedly")`; clear pending audio |
+| `WsClosed` during `Closing` state | Session → `Idle`; normal end |
+| Parse failure on server binary frame | `crate::log!("doubao_asr: failed to parse response frame")`; ignore frame; stay in current state |
+| Server session timeout (~60s inactivity) | Server sends `WsClosed`; handled as per `WsClosed` row above |
+| Multiple mic clicks during `Connecting` | Mic button is disabled (spinner shown); click is ignored |
+| `ws_open` called while previous socket still open | Call `cx.net.ws_close(ws_id)` first, then `cx.net.ws_open()` |
 
 ---
 
