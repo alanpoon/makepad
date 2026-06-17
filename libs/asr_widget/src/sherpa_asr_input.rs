@@ -211,7 +211,6 @@ pub struct SherpaAsrInput {
     // Draw state
     #[redraw] #[live] draw_mic:     DrawMicButton,
     #[redraw] #[live] draw_spinner: DrawSpinner,
-    #[redraw] #[live] draw_bg:      DrawQuad,
 
     #[live(true)] #[visible] visible: bool,
 
