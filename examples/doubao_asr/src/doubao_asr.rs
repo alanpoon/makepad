@@ -4,6 +4,15 @@ use makepad_micro_serde::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
+// ── Protocol constants ────────────────────────────────────────────────────────
+
+const PROTO_HEADER_BYTE: u8 = 0x11;
+const MSG_FULL_CLIENT_REQUEST: u8 = 0x10;
+const MSG_AUDIO_ONLY: u8 = 0x20;
+const MSG_AUDIO_LAST: u8 = 0x22;
+const SERIALIZATION_JSON: u8 = 0x10;
+const SERIALIZATION_RAW: u8 = 0x00;
+
 // ── State ────────────────────────────────────────────────────────────────────
 
 pub enum SessionState {
@@ -80,8 +89,11 @@ impl DoubaoAsrState {
     }
 
     pub fn take_error_msg(&self) -> Option<String> {
-        if let SessionState::Error(msg) = &*self.session.lock().unwrap() {
-            Some(msg.clone())
+        let mut guard = self.session.lock().unwrap();
+        if let SessionState::Error(msg) = &*guard {
+            let msg = msg.clone();
+            *guard = SessionState::Idle;
+            Some(msg)
         } else {
             None
         }
@@ -159,7 +171,7 @@ pub fn new_reqid() -> String {
 fn build_frame(msg_type: u8, serialization: u8, payload: &[u8]) -> Vec<u8> {
     let size = payload.len() as u32;
     let mut frame = Vec::with_capacity(8 + payload.len());
-    frame.push(0x11);
+    frame.push(PROTO_HEADER_BYTE);
     frame.push(msg_type);
     frame.push(serialization);
     frame.push(0x00);
@@ -175,12 +187,12 @@ pub fn build_config_frame(app_id: &str, token: &str, reqid: &str) -> Vec<u8> {
         token = token,
         reqid = reqid,
     );
-    build_frame(0x10, 0x10, json.as_bytes())
+    build_frame(MSG_FULL_CLIENT_REQUEST, SERIALIZATION_JSON, json.as_bytes())
 }
 
 pub fn build_audio_frame(pcm_bytes: &[u8], is_last: bool) -> Vec<u8> {
-    let msg_type = if is_last { 0x22 } else { 0x20 };
-    build_frame(msg_type, 0x00, pcm_bytes)
+    let msg_type = if is_last { MSG_AUDIO_LAST } else { MSG_AUDIO_ONLY };
+    build_frame(msg_type, SERIALIZATION_RAW, pcm_bytes)
 }
 
 // ── Response parser ───────────────────────────────────────────────────────────
@@ -335,6 +347,9 @@ impl DoubaoAsrInput {
 
     fn update_ui(&mut self, cx: &mut Cx) {
         let state = match &self.state { Some(s) => s.clone(), None => return };
+
+        // Auto-transition: Error → Idle on next timer tick (status label already set by App)
+        let _ = state.take_error_msg();
 
         let amplitude = state.calculate_amplitude();
         self.current_amplitude = self.current_amplitude * 0.7 + amplitude * 0.3;
