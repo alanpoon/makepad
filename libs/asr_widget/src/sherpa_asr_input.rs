@@ -2,6 +2,7 @@ use makepad_widgets::*;
 use makepad_widgets::makepad_platform::audio::{AudioInfo, AudioBuffer};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use sherpa_onnx::{OnlineRecognizer, OnlineStream};
 
 const ASR_SAMPLE_RATE: f64 = 16000.0;
 const MAX_RECENT_SAMPLES: usize = 1600; // 100ms at 16kHz
@@ -111,4 +112,40 @@ pub enum SherpaAsrInputAction {
     InterimResult(String),
     FinalResult(String),
     ModelLoadError(String),
+}
+
+// ─── Widget ───────────────────────────────────────────────────────────────────
+
+#[derive(Script, ScriptHook, Widget)]
+pub struct SherpaAsrInput {
+    // Required Makepad widget fields
+    #[uid]    uid:    WidgetUid,
+    #[source] source: ScriptObjectRef,
+    #[walk]   walk:   Walk,
+    #[layout] layout: Layout,
+
+    // Live fields (DSL-configurable)
+    #[live] pub model_dir:        String,
+    #[live] pub accent_color:     Vec4,
+    #[live(40.0)] pub mic_button_size: f64,
+
+    // Inner widgets found by id in the DSL
+    #[find] #[redraw] #[live] text_input:    WidgetRef,
+    #[find] #[redraw] #[live] interim_label: WidgetRef,
+
+    // Draw state
+    #[redraw] #[live] draw_mic:     DrawMicButton,
+    #[redraw] #[live] draw_spinner: DrawSpinner,
+    #[redraw] #[live] draw_bg:      DrawQuad,
+
+    #[live(true)] #[visible] visible: bool,
+
+    // Rust-only runtime state
+    #[rust] recognizer:        Option<OnlineRecognizer>,
+    #[rust] stream:            Option<OnlineStream>,
+    #[rust] shared:            Option<Arc<SherpaAsrShared>>,
+    #[rust] model_dir_loaded:  String,
+    #[rust] current_amplitude: f32,
+    #[rust] update_timer:      Timer,
+    #[rust] mic_area:          Area,
 }
