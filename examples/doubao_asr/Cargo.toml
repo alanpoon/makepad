@@ -1,0 +1,15 @@
+[package]
+name = "makepad-example-doubao-asr"
+version = "1.0.0"
+authors = ["Makepad <info@makepad.nl>"]
+edition = "2021"
+description = "Makepad Doubao ASR speech-to-text example"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "makepad-example-doubao-asr"
+path = "src/main.rs"
+
+[dependencies]
+makepad-widgets = { path = "../../widgets", version = "2.0.0" }
+makepad-micro-serde = { path = "../../libs/micro_serde", version = "1.0.0" }
