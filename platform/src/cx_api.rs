@@ -317,6 +317,11 @@ pub enum CxOsOp {
     StartLocationUpdates,
     StopLocationUpdates,
 
+    StartGyroscopeUpdates {
+        rate: crate::event::MotionUpdateRate,
+    },
+    StopGyroscopeUpdates,
+
     HttpRequest {
         request_id: LiveId,
         request: HttpRequest,
@@ -452,6 +457,8 @@ impl std::fmt::Debug for CxOsOp {
             Self::RequestPermission { .. } => write!(f, "RequestPermission"),
             Self::StartLocationUpdates => write!(f, "StartLocationUpdates"),
             Self::StopLocationUpdates => write!(f, "StopLocationUpdates"),
+            Self::StartGyroscopeUpdates { .. } => write!(f, "StartGyroscopeUpdates"),
+            Self::StopGyroscopeUpdates => write!(f, "StopGyroscopeUpdates"),
 
             Self::HttpRequest { .. } => write!(f, "HttpRequest"),
             Self::CancelHttpRequest { .. } => write!(f, "CancelHttpRequest"),
@@ -1187,6 +1194,24 @@ impl Cx {
     /// Stop streaming position fixes.
     pub fn stop_location_updates(&mut self) {
         self.platform_ops.push(CxOsOp::StopLocationUpdates);
+    }
+
+    /// Start streaming angular-rate samples from the device gyroscope
+    /// (`SensorManager` on Android). Samples arrive as
+    /// [`Event::GyroscopeUpdate`]; a device without a gyroscope, or a
+    /// platform without a motion backend, answers with
+    /// [`Event::MotionError`]. No runtime permission is involved.
+    ///
+    /// Sampling pauses while the app is backgrounded and resumes with the
+    /// app, until [`Cx::stop_gyroscope_updates`] is called.
+    pub fn start_gyroscope_updates(&mut self, rate: crate::event::MotionUpdateRate) {
+        self.platform_ops
+            .push(CxOsOp::StartGyroscopeUpdates { rate });
+    }
+
+    /// Stop streaming gyroscope samples.
+    pub fn stop_gyroscope_updates(&mut self) {
+        self.platform_ops.push(CxOsOp::StopGyroscopeUpdates);
     }
 
     pub fn get_dpi_factor_of(&mut self, area: &Area) -> f64 {

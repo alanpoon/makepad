@@ -75,6 +75,11 @@ public class MakepadNative {
         long timeMillis);
     public native static void onLocationError(int code, String message);
 
+    // motion sensors
+    public native static void onGyroscopeUpdate(
+        float rateX, float rateY, float rateZ, long timestampNanos);
+    public native static void onMotionError(String message);
+
     // video playback
     public static native void onVideoPlaybackPrepared(long videoId, int videoWidth, int videoHeight, long duration, VideoPlayer surfaceTexture);
     public static native void onVideoPlaybackCompleted(long videoId);

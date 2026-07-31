@@ -20,6 +20,10 @@ import android.graphics.Insets;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.hardware.input.InputManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -1359,6 +1363,7 @@ public class MakepadActivity
         updateTaskDescription();
         MakepadNative.activityOnResume();
         reportPhysicalKeyboardIfChanged();
+        registerGyroscopeListener();
 
         //% MAIN_ACTIVITY_ON_RESUME
     }
@@ -1367,6 +1372,8 @@ public class MakepadActivity
         prepareSurfaceSnapshotOverlayForPause();
         super.onPause();
         MakepadNative.activityOnPause();
+        // keep mGyroscopeWanted: onResume re-registers
+        unregisterGyroscopeListener();
 
         //% MAIN_ACTIVITY_ON_PAUSE
     }
@@ -1380,6 +1387,8 @@ public class MakepadActivity
     @Override
     protected void onDestroy() {
         unregisterPhysicalKeyboardListener();
+        mGyroscopeWanted = false;
+        unregisterGyroscopeListener();
         if (mCameraPreviewOverlay != null) {
             for (Long videoId : mCameraPreviewViews.keySet()) {
                 MakepadNative.onCameraPreviewSurfaceDestroyed(videoId);
@@ -2651,6 +2660,95 @@ public class MakepadActivity
             }
             mLocationListener = null;
         });
+    }
+
+    // motion sensors (Cx::start_gyroscope_updates)
+    private SensorManager mSensorManager;
+    private Sensor mGyroscope;
+    private SensorEventListener mGyroscopeListener;
+    // survives pause/resume: the listener is dropped while backgrounded but
+    // re-registered on resume as long as the app still wants samples
+    private boolean mGyroscopeWanted;
+    private int mGyroscopeDelay = SensorManager.SENSOR_DELAY_GAME;
+
+    public void startGyroscopeUpdates(final int rateCode) {
+        runOnUiThread(() -> {
+            switch (rateCode) {
+                case 0: mGyroscopeDelay = SensorManager.SENSOR_DELAY_NORMAL; break;
+                case 1: mGyroscopeDelay = SensorManager.SENSOR_DELAY_UI; break;
+                case 2: mGyroscopeDelay = SensorManager.SENSOR_DELAY_GAME; break;
+                default: mGyroscopeDelay = SensorManager.SENSOR_DELAY_FASTEST; break;
+            }
+            if (mGyroscopeListener != null) {
+                // already running: re-register so the new rate takes effect
+                unregisterGyroscopeListener();
+            }
+            mGyroscopeWanted = true;
+            registerGyroscopeListener();
+        });
+    }
+
+    public void stopGyroscopeUpdates() {
+        runOnUiThread(() -> {
+            mGyroscopeWanted = false;
+            unregisterGyroscopeListener();
+        });
+    }
+
+    private void registerGyroscopeListener() {
+        if (!mGyroscopeWanted || mGyroscopeListener != null) {
+            return;
+        }
+        try {
+            if (mSensorManager == null) {
+                mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+            }
+            if (mSensorManager == null) {
+                mGyroscopeWanted = false;
+                MakepadNative.onMotionError("no sensor service");
+                return;
+            }
+            if (mGyroscope == null) {
+                mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+            }
+            if (mGyroscope == null) {
+                mGyroscopeWanted = false;
+                MakepadNative.onMotionError("no gyroscope on this device");
+                return;
+            }
+            SensorEventListener listener = new SensorEventListener() {
+                @Override
+                public void onSensorChanged(SensorEvent event) {
+                    MakepadNative.onGyroscopeUpdate(
+                        event.values[0], event.values[1], event.values[2],
+                        event.timestamp);
+                }
+                @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+            };
+            if (!mSensorManager.registerListener(listener, mGyroscope, mGyroscopeDelay)) {
+                mGyroscopeWanted = false;
+                MakepadNative.onMotionError("could not register gyroscope listener");
+                return;
+            }
+            mGyroscopeListener = listener;
+        }
+        catch (Exception e) {
+            mGyroscopeListener = null;
+            mGyroscopeWanted = false;
+            MakepadNative.onMotionError(e.toString());
+        }
+    }
+
+    private void unregisterGyroscopeListener() {
+        try {
+            if (mSensorManager != null && mGyroscopeListener != null) {
+                mSensorManager.unregisterListener(mGyroscopeListener);
+            }
+        }
+        catch (Exception e) {
+            Log.e("Makepad", "unregisterGyroscopeListener: " + e.toString());
+        }
+        mGyroscopeListener = null;
     }
 
     public void attachCameraNativePreview(final long videoId, final int left, final int top, final int right, final int bottom) {

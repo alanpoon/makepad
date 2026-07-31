@@ -8,8 +8,8 @@ use {
         draw_list::DrawListId,
         //midi::{Midi1InputData, MidiInputInfo},
         event::{
-            drag_drop::*, finger::*, game_input::*, keyboard::*, location::*, network::*,
-            video_playback::*, window::*, xr::*,
+            drag_drop::*, finger::*, game_input::*, keyboard::*, location::*, motion::*,
+            network::*, video_playback::*, window::*, xr::*,
         },
         //makepad_live_compiler::LiveEditEvent,
         makepad_live_id::LiveId,
@@ -264,6 +264,12 @@ pub enum Event {
     /// Location updates cannot be delivered (permission denied / no service).
     LocationError(LocationErrorEvent),
 
+    /// An angular-rate sample from the device gyroscope
+    /// (see [`Cx::start_gyroscope_updates`]).
+    GyroscopeUpdate(GyroscopeUpdateEvent),
+    /// Motion updates cannot be delivered (no such sensor / no backend).
+    MotionError(MotionErrorEvent),
+
     #[cfg(target_arch = "wasm32")]
     ToWasmMsg(ToWasmMsgEvent),
 }
@@ -357,6 +363,8 @@ impl Event {
             66 => "ScriptReapply",
             69 => "LocationUpdate",
             70 => "LocationError",
+            71 => "GyroscopeUpdate",
+            72 => "MotionError",
             _ => panic!(),
         }
     }
@@ -438,6 +446,8 @@ impl Event {
             Self::PermissionResult(_) => 54,
             Self::LocationUpdate(_) => 69,
             Self::LocationError(_) => 70,
+            Self::GyroscopeUpdate(_) => 71,
+            Self::MotionError(_) => 72,
 
             #[cfg(target_arch = "wasm32")]
             Self::ToWasmMsg(_) => 55,

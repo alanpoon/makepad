@@ -1126,6 +1126,26 @@ impl Cx {
                 };
                 self.call_event_handler(&Event::LocationError(error));
             }
+            FromJavaMessage::GyroscopeUpdate {
+                rate_x,
+                rate_y,
+                rate_z,
+                timestamp_ns,
+            } => {
+                self.call_event_handler(&Event::GyroscopeUpdate(
+                    crate::event::GyroscopeUpdateEvent {
+                        rate_x: rate_x as f64,
+                        rate_y: rate_y as f64,
+                        rate_z: rate_z as f64,
+                        time: timestamp_ns as f64 / 1.0e9,
+                    },
+                ));
+            }
+            FromJavaMessage::MotionError { message } => {
+                self.call_event_handler(&Event::MotionError(
+                    crate::event::MotionErrorEvent::Unavailable(message),
+                ));
+            }
             FromJavaMessage::VideoPlaybackPrepared {
                 video_id,
                 video_width,
@@ -2549,6 +2569,14 @@ impl Cx {
                         android_jni::to_java_stop_location_updates();
                     }
                 }
+                // The gyroscope needs no runtime permission; Java owns the
+                // register/unregister-across-pause bookkeeping.
+                CxOsOp::StartGyroscopeUpdates { rate } => unsafe {
+                    android_jni::to_java_start_gyroscope_updates(rate.to_code());
+                },
+                CxOsOp::StopGyroscopeUpdates => unsafe {
+                    android_jni::to_java_stop_gyroscope_updates();
+                },
                 CxOsOp::HttpRequest {
                     request_id,
                     request,

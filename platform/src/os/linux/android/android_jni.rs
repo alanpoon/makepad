@@ -187,6 +187,15 @@ pub enum FromJavaMessage {
         code: i32, // 1 = permission denied, 2 = unavailable
         message: String,
     },
+    GyroscopeUpdate {
+        rate_x: f32,
+        rate_y: f32,
+        rate_z: f32,
+        timestamp_ns: i64,
+    },
+    MotionError {
+        message: String,
+    },
     VideoPlaybackPrepared {
         video_id: u64,
         video_width: u32,
@@ -1245,6 +1254,34 @@ pub unsafe extern "C" fn Java_dev_makepad_android_MakepadNative_onLocationError(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn Java_dev_makepad_android_MakepadNative_onGyroscopeUpdate(
+    _: *mut jni_sys::JNIEnv,
+    _: jni_sys::jclass,
+    rate_x: jni_sys::jfloat,
+    rate_y: jni_sys::jfloat,
+    rate_z: jni_sys::jfloat,
+    timestamp_nanos: jni_sys::jlong,
+) {
+    send_from_java_message(FromJavaMessage::GyroscopeUpdate {
+        rate_x,
+        rate_y,
+        rate_z,
+        timestamp_ns: timestamp_nanos,
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_dev_makepad_android_MakepadNative_onMotionError(
+    env: *mut jni_sys::JNIEnv,
+    _: jni_sys::jclass,
+    message: jni_sys::jstring,
+) {
+    send_from_java_message(FromJavaMessage::MotionError {
+        message: jstring_to_string(env, message),
+    });
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn Java_dev_makepad_android_MakepadNative_onPermissionDenied(
     env: *mut jni_sys::JNIEnv,
     class: jni_sys::jclass,
@@ -2039,6 +2076,24 @@ pub unsafe fn to_java_start_location_updates(min_interval_ms: i64, min_distance_
 pub unsafe fn to_java_stop_location_updates() {
     let env = attach_jni_env();
     ndk_utils::call_void_method!(env, get_activity(), "stopLocationUpdates", "()V");
+}
+
+/// `rate_code` is [`crate::event::MotionUpdateRate::to_code`]; Java maps it
+/// onto the matching `SensorManager.SENSOR_DELAY_*` constant.
+pub unsafe fn to_java_start_gyroscope_updates(rate_code: i32) {
+    let env = attach_jni_env();
+    ndk_utils::call_void_method!(
+        env,
+        get_activity(),
+        "startGyroscopeUpdates",
+        "(I)V",
+        rate_code as jni_sys::jint
+    );
+}
+
+pub unsafe fn to_java_stop_gyroscope_updates() {
+    let env = attach_jni_env();
+    ndk_utils::call_void_method!(env, get_activity(), "stopGyroscopeUpdates", "()V");
 }
 
 pub unsafe fn to_java_request_permission(permission: &str, request_id: i32) {
