@@ -8,13 +8,11 @@
 //! runs it per frame and returns a [`Pose`] in normalized source coordinates.
 
 pub mod decode;
-pub mod graph;
-pub mod preprocess;
-pub mod spec;
-pub mod weights;
 
 pub use decode::{DecodeParams, Keypoint, Pose, KEYPOINT_NAMES, NUM_KEYPOINTS, SKELETON};
-pub use preprocess::Letterbox;
+pub use makepad_nn_graph::{spec, weights, Letterbox, NnError as MoveNetError};
+
+use makepad_nn_graph::{graph, preprocess};
 
 use makepad_ggml::backend::metal::{
     prepare_graph, BufferStorageMode, MetalGraphSession, MetalGraphTensorWrite, MetalRuntime,
@@ -22,47 +20,6 @@ use makepad_ggml::backend::metal::{
 use makepad_ggml::{Context, Graph, InitParams, TensorId};
 use std::fmt;
 use std::path::Path;
-
-#[derive(Debug)]
-pub enum MoveNetError {
-    Io(String),
-    Spec(String),
-    Weights(String),
-    MissingTensor(String),
-    Graph(String),
-    Backend(String),
-    Decode(String),
-}
-
-impl MoveNetError {
-    /// Annotate a graph error with the layer that produced it, which is the
-    /// only way to find a bad entry in a several-hundred-layer spec.
-    fn with_layer(self, index: usize, op: &str, output: &str) -> Self {
-        match self {
-            Self::Graph(msg) => Self::Graph(format!("layer {index} ({op} -> {output}): {msg}")),
-            Self::MissingTensor(name) => Self::Graph(format!(
-                "layer {index} ({op} -> {output}): weights have no tensor named {name}"
-            )),
-            other => other,
-        }
-    }
-}
-
-impl fmt::Display for MoveNetError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(m) => write!(f, "io error: {m}"),
-            Self::Spec(m) => write!(f, "model spec error: {m}"),
-            Self::Weights(m) => write!(f, "weights error: {m}"),
-            Self::MissingTensor(m) => write!(f, "weights have no tensor named {m}"),
-            Self::Graph(m) => write!(f, "graph error: {m}"),
-            Self::Backend(m) => write!(f, "backend error: {m}"),
-            Self::Decode(m) => write!(f, "decode error: {m}"),
-        }
-    }
-}
-
-impl std::error::Error for MoveNetError {}
 
 pub struct Estimator {
     ctx: Context,
@@ -137,10 +94,10 @@ impl Estimator {
 
         let mut g = Graph::new();
         for out in [
-            built.heatmap,
-            built.center,
-            built.regress,
-            built.offset,
+            built.output("heatmap")?,
+            built.output("center")?,
+            built.output("regress")?,
+            built.output("offset")?,
         ] {
             g.build_forward_expand(&ctx, out)
                 .map_err(MoveNetError::Graph)?;
@@ -163,7 +120,7 @@ impl Estimator {
         .map_err(MoveNetError::Backend)?;
 
         let head = ctx
-            .tensor(built.heatmap)
+            .tensor(built.output("heatmap")?)
             .ok_or_else(|| MoveNetError::Graph("heatmap head vanished".to_string()))?;
         let grid_width = head.ne[0] as usize;
         let grid_height = head.ne[1] as usize;
@@ -178,7 +135,7 @@ impl Estimator {
             ctx,
             session,
             input: built.input,
-            heads: [built.heatmap, built.center, built.regress, built.offset],
+            heads: [built.output("heatmap")?, built.output("center")?, built.output("regress")?, built.output("offset")?],
             input_size: spec.input_width as usize,
             input_scale: spec.input_scale.unwrap_or(1.0),
             input_bias: spec.input_bias.unwrap_or(0.0),
@@ -205,15 +162,29 @@ impl Estimator {
         self.decode_params = params;
     }
 
-    /// Run one frame. `rgb` is 8-bit RGB, row-major, `width * height * 3`.
-    /// Keypoints come back normalized to the source image, not the padded
-    /// model square.
-    pub fn estimate(
+    /// The four raw head planes, for comparing against a reference
+    /// implementation. Same order as [`Estimator::estimate`] reads them:
+    /// heatmap, center, regress, offset.
+    pub fn debug_heads(
         &self,
         rgb: &[u8],
         width: usize,
         height: usize,
-    ) -> Result<Pose, MoveNetError> {
+    ) -> Result<(Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>), MoveNetError> {
+        let planes = self.run_heads(rgb, width, height)?.0;
+        Ok(planes)
+    }
+
+    /// Run one frame. `rgb` is 8-bit RGB, row-major, `width * height * 3`.
+    /// Keypoints come back normalized to the source image, not the padded
+    /// model square.
+    #[allow(clippy::type_complexity)]
+    fn run_heads(
+        &self,
+        rgb: &[u8],
+        width: usize,
+        height: usize,
+    ) -> Result<((Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>), Letterbox), MoveNetError> {
         let (planes, letterbox) = preprocess::letterbox_rgb8(
             rgb,
             width,
@@ -222,7 +193,7 @@ impl Estimator {
             self.input_scale,
             self.input_bias,
         )
-        .map_err(MoveNetError::Decode)?;
+        .map_err(MoveNetError::Input)?;
 
         let mut bytes = Vec::with_capacity(planes.len() * 4);
         for v in &planes {
@@ -257,6 +228,21 @@ impl Estimator {
         let regress = plane(self.heads[2], "regress")?;
         let offset = plane(self.heads[3], "offset")?;
 
+        Ok(((heatmap, center, regress, offset), letterbox))
+    }
+
+    /// Run one frame and decode a pose. `rgb` is 8-bit RGB, row-major.
+    /// Keypoints come back normalized to the source image, not the padded
+    /// model square.
+    pub fn estimate(
+        &self,
+        rgb: &[u8],
+        width: usize,
+        height: usize,
+    ) -> Result<Pose, MoveNetError> {
+        let ((heatmap, center, regress, offset), letterbox) =
+            self.run_heads(rgb, width, height)?;
+
         let heads = decode::Heads {
             width: self.grid_width,
             height: self.grid_height,
@@ -265,7 +251,7 @@ impl Estimator {
             regress: &regress,
             offset: &offset,
         };
-        let mut pose = decode::decode(&heads, self.decode_params).map_err(MoveNetError::Decode)?;
+        let mut pose = decode::decode(&heads, self.decode_params).map_err(MoveNetError::Input)?;
 
         // model space -> source image space, undoing the letterbox
         for kp in pose.keypoints.iter_mut() {

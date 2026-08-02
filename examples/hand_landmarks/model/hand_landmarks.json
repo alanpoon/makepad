@@ -1,0 +1,1210 @@
+{
+ "name": "hand_landmarks_detector",
+ "input_width": 224,
+ "input_height": 224,
+ "input_scale": 1.0,
+ "input_bias": 0.0,
+ "layers": [
+  {
+   "op": "conv2d",
+   "inputs": [
+    "image"
+   ],
+   "output": "model_1/model/re_lu/Relu6;model_1/model/batch_normalization/FusedBatchNormV3;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d/Conv2D",
+   "weight": "model_1/model/re_lu/Relu6;model_1/model/batch_normalization/FusedBatchNormV3;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d/Conv2D.weight",
+   "stride": [
+    2,
+    2
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "pad_lrtb": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "bias": "model_1/model/re_lu/Relu6;model_1/model/batch_normalization/FusedBatchNormV3;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu/Relu6;model_1/model/batch_normalization/FusedBatchNormV3;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_1/Relu6;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D",
+   "weight": "model_1/model/re_lu_1/Relu6;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_1/Relu6;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_1/Relu6;model_1/model/batch_normalization_1/FusedBatchNormV3;model_1/model/depthwise_conv2d/depthwise;model_1/model/conv2d_5/Conv2D"
+   ],
+   "output": "model_1/model/batch_normalization_2/FusedBatchNormV3;model_1/model/conv2d_1/Conv2D1",
+   "weight": "model_1/model/batch_normalization_2/FusedBatchNormV3;model_1/model/conv2d_1/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_2/FusedBatchNormV3;model_1/model/conv2d_1/Conv2D1.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/batch_normalization_2/FusedBatchNormV3;model_1/model/conv2d_1/Conv2D1"
+   ],
+   "output": "model_1/model/re_lu_2/Relu6;model_1/model/batch_normalization_3/FusedBatchNormV3;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise;model_1/model/conv2d_2/Conv2D",
+   "weight": "model_1/model/re_lu_2/Relu6;model_1/model/batch_normalization_3/FusedBatchNormV3;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise;model_1/model/conv2d_2/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_2/Relu6;model_1/model/batch_normalization_3/FusedBatchNormV3;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise;model_1/model/conv2d_2/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_2/Relu6;model_1/model/batch_normalization_3/FusedBatchNormV3;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise;model_1/model/conv2d_2/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_3/Relu6;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise",
+   "weight": "model_1/model/re_lu_3/Relu6;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise.weight",
+   "stride": [
+    2,
+    2
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "pad_lrtb": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "bias": "model_1/model/re_lu_3/Relu6;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_3/Relu6;model_1/model/batch_normalization_4/FusedBatchNormV3;model_1/model/depthwise_conv2d_1/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_5/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d_3/Conv2D1",
+   "weight": "model_1/model/batch_normalization_5/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d_3/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_5/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d_3/Conv2D1.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/batch_normalization_5/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d_3/Conv2D1"
+   ],
+   "output": "model_1/model/re_lu_4/Relu6;model_1/model/batch_normalization_6/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_4/Conv2D",
+   "weight": "model_1/model/re_lu_4/Relu6;model_1/model/batch_normalization_6/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_4/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_4/Relu6;model_1/model/batch_normalization_6/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_4/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_4/Relu6;model_1/model/batch_normalization_6/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_4/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_5/Relu6;model_1/model/batch_normalization_7/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/depthwise_conv2d_2/depthwise",
+   "weight": "model_1/model/re_lu_5/Relu6;model_1/model/batch_normalization_7/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/depthwise_conv2d_2/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_5/Relu6;model_1/model/batch_normalization_7/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/depthwise_conv2d_2/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_5/Relu6;model_1/model/batch_normalization_7/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/depthwise_conv2d_2/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_8/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D1",
+   "weight": "model_1/model/batch_normalization_8/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_8/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_8/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D1",
+    "model_1/model/batch_normalization_5/FusedBatchNormV3;model_1/model/conv2d_5/Conv2D;model_1/model/conv2d_3/Conv2D1"
+   ],
+   "output": "model_1/model/add/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add/add"
+   ],
+   "output": "model_1/model/re_lu_6/Relu6;model_1/model/batch_normalization_9/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_6/Conv2D",
+   "weight": "model_1/model/re_lu_6/Relu6;model_1/model/batch_normalization_9/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_6/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_6/Relu6;model_1/model/batch_normalization_9/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_6/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_6/Relu6;model_1/model/batch_normalization_9/FusedBatchNormV3;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise;model_1/model/conv2d_6/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_7/Relu6;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise",
+   "weight": "model_1/model/re_lu_7/Relu6;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise.weight",
+   "stride": [
+    2,
+    2
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "pad_lrtb": [
+    1,
+    2,
+    1,
+    2
+   ],
+   "bias": "model_1/model/re_lu_7/Relu6;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_7/Relu6;model_1/model/batch_normalization_10/FusedBatchNormV3;model_1/model/depthwise_conv2d_3/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_11/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D;model_1/model/conv2d_7/Conv2D1",
+   "weight": "model_1/model/batch_normalization_11/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D;model_1/model/conv2d_7/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_11/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D;model_1/model/conv2d_7/Conv2D1.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/batch_normalization_11/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D;model_1/model/conv2d_7/Conv2D1"
+   ],
+   "output": "model_1/model/re_lu_8/Relu6;model_1/model/batch_normalization_12/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_8/Conv2D",
+   "weight": "model_1/model/re_lu_8/Relu6;model_1/model/batch_normalization_12/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_8/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_8/Relu6;model_1/model/batch_normalization_12/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_8/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_8/Relu6;model_1/model/batch_normalization_12/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_8/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_9/Relu6;model_1/model/batch_normalization_13/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/depthwise_conv2d_4/depthwise",
+   "weight": "model_1/model/re_lu_9/Relu6;model_1/model/batch_normalization_13/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/depthwise_conv2d_4/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_9/Relu6;model_1/model/batch_normalization_13/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/depthwise_conv2d_4/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_9/Relu6;model_1/model/batch_normalization_13/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/depthwise_conv2d_4/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_14/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D1",
+   "weight": "model_1/model/batch_normalization_14/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_14/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_14/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D1",
+    "model_1/model/batch_normalization_11/FusedBatchNormV3;model_1/model/conv2d_9/Conv2D;model_1/model/conv2d_7/Conv2D1"
+   ],
+   "output": "model_1/model/add_1/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_1/add"
+   ],
+   "output": "model_1/model/re_lu_10/Relu6;model_1/model/batch_normalization_15/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_10/Conv2D",
+   "weight": "model_1/model/re_lu_10/Relu6;model_1/model/batch_normalization_15/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_10/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_10/Relu6;model_1/model/batch_normalization_15/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_10/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_10/Relu6;model_1/model/batch_normalization_15/FusedBatchNormV3;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise;model_1/model/conv2d_10/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_11/Relu6;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise",
+   "weight": "model_1/model/re_lu_11/Relu6;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise.weight",
+   "stride": [
+    2,
+    2
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "pad_lrtb": [
+    0,
+    1,
+    0,
+    1
+   ],
+   "bias": "model_1/model/re_lu_11/Relu6;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_11/Relu6;model_1/model/batch_normalization_16/FusedBatchNormV3;model_1/model/depthwise_conv2d_5/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_17/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_11/Conv2D1",
+   "weight": "model_1/model/batch_normalization_17/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_11/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_17/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_11/Conv2D1.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/batch_normalization_17/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_11/Conv2D1"
+   ],
+   "output": "model_1/model/re_lu_12/Relu6;model_1/model/batch_normalization_18/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_12/Conv2D",
+   "weight": "model_1/model/re_lu_12/Relu6;model_1/model/batch_normalization_18/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_12/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_12/Relu6;model_1/model/batch_normalization_18/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_12/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_12/Relu6;model_1/model/batch_normalization_18/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_12/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_13/Relu6;model_1/model/batch_normalization_19/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_6/depthwise",
+   "weight": "model_1/model/re_lu_13/Relu6;model_1/model/batch_normalization_19/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_6/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_13/Relu6;model_1/model/batch_normalization_19/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_6/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_13/Relu6;model_1/model/batch_normalization_19/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_6/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_20/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_13/Conv2D1",
+   "weight": "model_1/model/batch_normalization_20/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_13/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_20/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_13/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_20/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_13/Conv2D1",
+    "model_1/model/batch_normalization_17/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D;model_1/model/conv2d_11/Conv2D1"
+   ],
+   "output": "model_1/model/add_2/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_2/add"
+   ],
+   "output": "model_1/model/re_lu_14/Relu6;model_1/model/batch_normalization_21/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_14/Conv2D",
+   "weight": "model_1/model/re_lu_14/Relu6;model_1/model/batch_normalization_21/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_14/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_14/Relu6;model_1/model/batch_normalization_21/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_14/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_14/Relu6;model_1/model/batch_normalization_21/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_14/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_15/Relu6;model_1/model/batch_normalization_22/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_7/depthwise",
+   "weight": "model_1/model/re_lu_15/Relu6;model_1/model/batch_normalization_22/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_7/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_15/Relu6;model_1/model/batch_normalization_22/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_7/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_15/Relu6;model_1/model/batch_normalization_22/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/depthwise_conv2d_7/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_23/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D1",
+   "weight": "model_1/model/batch_normalization_23/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_23/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_23/FusedBatchNormV3;model_1/model/conv2d_15/Conv2D1",
+    "model_1/model/add_2/add"
+   ],
+   "output": "model_1/model/add_3/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_3/add"
+   ],
+   "output": "model_1/model/re_lu_16/Relu6;model_1/model/batch_normalization_24/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_16/Conv2D",
+   "weight": "model_1/model/re_lu_16/Relu6;model_1/model/batch_normalization_24/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_16/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_16/Relu6;model_1/model/batch_normalization_24/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_16/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_16/Relu6;model_1/model/batch_normalization_24/FusedBatchNormV3;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise;model_1/model/conv2d_16/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_17/Relu6;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise",
+   "weight": "model_1/model/re_lu_17/Relu6;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_17/Relu6;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_17/Relu6;model_1/model/batch_normalization_25/FusedBatchNormV3;model_1/model/depthwise_conv2d_8/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_26/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_17/Conv2D1",
+   "weight": "model_1/model/batch_normalization_26/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_17/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_26/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_17/Conv2D1.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/batch_normalization_26/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_17/Conv2D1"
+   ],
+   "output": "model_1/model/re_lu_18/Relu6;model_1/model/batch_normalization_27/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_18/Conv2D",
+   "weight": "model_1/model/re_lu_18/Relu6;model_1/model/batch_normalization_27/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_18/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_18/Relu6;model_1/model/batch_normalization_27/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_18/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_18/Relu6;model_1/model/batch_normalization_27/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_18/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_19/Relu6;model_1/model/batch_normalization_28/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/depthwise_conv2d_9/depthwise",
+   "weight": "model_1/model/re_lu_19/Relu6;model_1/model/batch_normalization_28/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/depthwise_conv2d_9/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_19/Relu6;model_1/model/batch_normalization_28/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/depthwise_conv2d_9/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_19/Relu6;model_1/model/batch_normalization_28/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/depthwise_conv2d_9/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_29/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_19/Conv2D1",
+   "weight": "model_1/model/batch_normalization_29/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_19/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_29/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_19/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_29/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_19/Conv2D1",
+    "model_1/model/batch_normalization_26/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D;model_1/model/conv2d_17/Conv2D1"
+   ],
+   "output": "model_1/model/add_4/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_4/add"
+   ],
+   "output": "model_1/model/re_lu_20/Relu6;model_1/model/batch_normalization_30/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_20/Conv2D",
+   "weight": "model_1/model/re_lu_20/Relu6;model_1/model/batch_normalization_30/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_20/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_20/Relu6;model_1/model/batch_normalization_30/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_20/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_20/Relu6;model_1/model/batch_normalization_30/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_20/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_21/Relu6;model_1/model/batch_normalization_31/FusedBatchNormV3;model_1/model/depthwise_conv2d_10/depthwise;model_1/model/depthwise_conv2d_11/depthwise",
+   "weight": "model_1/model/re_lu_21/Relu6;model_1/model/batch_normalization_31/FusedBatchNormV3;model_1/model/depthwise_conv2d_10/depthwise;model_1/model/depthwise_conv2d_11/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_21/Relu6;model_1/model/batch_normalization_31/FusedBatchNormV3;model_1/model/depthwise_conv2d_10/depthwise;model_1/model/depthwise_conv2d_11/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_21/Relu6;model_1/model/batch_normalization_31/FusedBatchNormV3;model_1/model/depthwise_conv2d_10/depthwise;model_1/model/depthwise_conv2d_11/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_32/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D1",
+   "weight": "model_1/model/batch_normalization_32/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_32/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_32/FusedBatchNormV3;model_1/model/conv2d_21/Conv2D1",
+    "model_1/model/add_4/add"
+   ],
+   "output": "model_1/model/add_5/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_5/add"
+   ],
+   "output": "model_1/model/re_lu_22/Relu6;model_1/model/batch_normalization_33/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_22/Conv2D",
+   "weight": "model_1/model/re_lu_22/Relu6;model_1/model/batch_normalization_33/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_22/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_22/Relu6;model_1/model/batch_normalization_33/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_22/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_22/Relu6;model_1/model/batch_normalization_33/FusedBatchNormV3;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise;model_1/model/conv2d_22/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_23/Relu6;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise",
+   "weight": "model_1/model/re_lu_23/Relu6;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise.weight",
+   "stride": [
+    2,
+    2
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "pad_lrtb": [
+    1,
+    2,
+    1,
+    2
+   ],
+   "bias": "model_1/model/re_lu_23/Relu6;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_23/Relu6;model_1/model/batch_normalization_34/FusedBatchNormV3;model_1/model/depthwise_conv2d_11/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_35/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_23/Conv2D1",
+   "weight": "model_1/model/batch_normalization_35/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_23/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_35/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_23/Conv2D1.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/batch_normalization_35/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_23/Conv2D1"
+   ],
+   "output": "model_1/model/re_lu_24/Relu6;model_1/model/batch_normalization_36/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_24/Conv2D",
+   "weight": "model_1/model/re_lu_24/Relu6;model_1/model/batch_normalization_36/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_24/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_24/Relu6;model_1/model/batch_normalization_36/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_24/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_24/Relu6;model_1/model/batch_normalization_36/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_24/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_25/Relu6;model_1/model/batch_normalization_37/FusedBatchNormV3;model_1/model/depthwise_conv2d_12/depthwise;model_1/model/depthwise_conv2d_15/depthwise",
+   "weight": "model_1/model/re_lu_25/Relu6;model_1/model/batch_normalization_37/FusedBatchNormV3;model_1/model/depthwise_conv2d_12/depthwise;model_1/model/depthwise_conv2d_15/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_25/Relu6;model_1/model/batch_normalization_37/FusedBatchNormV3;model_1/model/depthwise_conv2d_12/depthwise;model_1/model/depthwise_conv2d_15/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_25/Relu6;model_1/model/batch_normalization_37/FusedBatchNormV3;model_1/model/depthwise_conv2d_12/depthwise;model_1/model/depthwise_conv2d_15/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_38/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_25/Conv2D1",
+   "weight": "model_1/model/batch_normalization_38/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_25/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_38/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_25/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_38/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_25/Conv2D1",
+    "model_1/model/batch_normalization_35/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_23/Conv2D1"
+   ],
+   "output": "model_1/model/add_6/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_6/add"
+   ],
+   "output": "model_1/model/re_lu_26/Relu6;model_1/model/batch_normalization_39/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_26/Conv2D",
+   "weight": "model_1/model/re_lu_26/Relu6;model_1/model/batch_normalization_39/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_26/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_26/Relu6;model_1/model/batch_normalization_39/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_26/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_26/Relu6;model_1/model/batch_normalization_39/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_26/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_27/Relu6;model_1/model/batch_normalization_40/FusedBatchNormV3;model_1/model/depthwise_conv2d_13/depthwise;model_1/model/depthwise_conv2d_15/depthwise",
+   "weight": "model_1/model/re_lu_27/Relu6;model_1/model/batch_normalization_40/FusedBatchNormV3;model_1/model/depthwise_conv2d_13/depthwise;model_1/model/depthwise_conv2d_15/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_27/Relu6;model_1/model/batch_normalization_40/FusedBatchNormV3;model_1/model/depthwise_conv2d_13/depthwise;model_1/model/depthwise_conv2d_15/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_27/Relu6;model_1/model/batch_normalization_40/FusedBatchNormV3;model_1/model/depthwise_conv2d_13/depthwise;model_1/model/depthwise_conv2d_15/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_41/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_27/Conv2D1",
+   "weight": "model_1/model/batch_normalization_41/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_27/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_41/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_27/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_41/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D;model_1/model/conv2d_27/Conv2D1",
+    "model_1/model/add_6/add"
+   ],
+   "output": "model_1/model/add_7/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_7/add"
+   ],
+   "output": "model_1/model/re_lu_28/Relu6;model_1/model/batch_normalization_42/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_28/Conv2D",
+   "weight": "model_1/model/re_lu_28/Relu6;model_1/model/batch_normalization_42/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_28/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_28/Relu6;model_1/model/batch_normalization_42/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_28/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_28/Relu6;model_1/model/batch_normalization_42/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_28/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_29/Relu6;model_1/model/batch_normalization_43/FusedBatchNormV3;model_1/model/depthwise_conv2d_14/depthwise;model_1/model/depthwise_conv2d_15/depthwise",
+   "weight": "model_1/model/re_lu_29/Relu6;model_1/model/batch_normalization_43/FusedBatchNormV3;model_1/model/depthwise_conv2d_14/depthwise;model_1/model/depthwise_conv2d_15/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    2,
+    2
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_29/Relu6;model_1/model/batch_normalization_43/FusedBatchNormV3;model_1/model/depthwise_conv2d_14/depthwise;model_1/model/depthwise_conv2d_15/depthwise.bias"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/re_lu_29/Relu6;model_1/model/batch_normalization_43/FusedBatchNormV3;model_1/model/depthwise_conv2d_14/depthwise;model_1/model/depthwise_conv2d_15/depthwise"
+   ],
+   "output": "model_1/model/batch_normalization_44/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D1",
+   "weight": "model_1/model/batch_normalization_44/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D1.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "none",
+   "bias": "model_1/model/batch_normalization_44/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D1.bias"
+  },
+  {
+   "op": "add",
+   "inputs": [
+    "model_1/model/batch_normalization_44/FusedBatchNormV3;model_1/model/conv2d_29/Conv2D1",
+    "model_1/model/add_7/add"
+   ],
+   "output": "model_1/model/add_8/add"
+  },
+  {
+   "op": "conv2d",
+   "inputs": [
+    "model_1/model/add_8/add"
+   ],
+   "output": "model_1/model/re_lu_30/Relu6;model_1/model/batch_normalization_45/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_30/Conv2D",
+   "weight": "model_1/model/re_lu_30/Relu6;model_1/model/batch_normalization_45/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_30/Conv2D.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    0,
+    0
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_30/Relu6;model_1/model/batch_normalization_45/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_30/Conv2D.bias"
+  },
+  {
+   "op": "dwconv2d",
+   "inputs": [
+    "model_1/model/re_lu_30/Relu6;model_1/model/batch_normalization_45/FusedBatchNormV3;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise;model_1/model/conv2d_30/Conv2D"
+   ],
+   "output": "model_1/model/re_lu_31/Relu6;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise",
+   "weight": "model_1/model/re_lu_31/Relu6;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise.weight",
+   "stride": [
+    1,
+    1
+   ],
+   "pad": [
+    1,
+    1
+   ],
+   "dilation": [
+    1,
+    1
+   ],
+   "activation": "relu6",
+   "bias": "model_1/model/re_lu_31/Relu6;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise.bias"
+  },
+  {
+   "op": "mean",
+   "inputs": [
+    "model_1/model/re_lu_31/Relu6;model_1/model/batch_normalization_46/FusedBatchNormV3;model_1/model/depthwise_conv2d_15/depthwise"
+   ],
+   "output": "model_1/model/global_average_pooling2d/Mean"
+  },
+  {
+   "op": "fully_connected",
+   "inputs": [
+    "model_1/model/global_average_pooling2d/Mean"
+   ],
+   "output": "model_1/model/conv_handedness/MatMul;model_1/model/conv_handedness/BiasAdd",
+   "weight": "model_1/model/conv_handedness/MatMul;model_1/model/conv_handedness/BiasAdd.weight",
+   "bias": "model_1/model/conv_handedness/MatMul;model_1/model/conv_handedness/BiasAdd.bias"
+  },
+  {
+   "op": "activation",
+   "inputs": [
+    "model_1/model/conv_handedness/MatMul;model_1/model/conv_handedness/BiasAdd"
+   ],
+   "output": "Identity_2",
+   "activation": "sigmoid"
+  },
+  {
+   "op": "fully_connected",
+   "inputs": [
+    "model_1/model/global_average_pooling2d/Mean"
+   ],
+   "output": "model_1/model/conv_handflag/MatMul;model_1/model/conv_handflag/BiasAdd",
+   "weight": "model_1/model/conv_handflag/MatMul;model_1/model/conv_handflag/BiasAdd.weight",
+   "bias": "model_1/model/conv_handflag/MatMul;model_1/model/conv_handflag/BiasAdd.bias"
+  },
+  {
+   "op": "activation",
+   "inputs": [
+    "model_1/model/conv_handflag/MatMul;model_1/model/conv_handflag/BiasAdd"
+   ],
+   "output": "Identity_1",
+   "activation": "sigmoid"
+  },
+  {
+   "op": "fully_connected",
+   "inputs": [
+    "model_1/model/global_average_pooling2d/Mean"
+   ],
+   "output": "Identity",
+   "weight": "Identity.weight",
+   "bias": "Identity.bias"
+  },
+  {
+   "op": "fully_connected",
+   "inputs": [
+    "model_1/model/global_average_pooling2d/Mean"
+   ],
+   "output": "Identity_3",
+   "weight": "Identity_3.weight",
+   "bias": "Identity_3.bias"
+  }
+ ],
+ "outputs": {
+  "out0": "Identity",
+  "out1": "Identity_1",
+  "out2": "Identity_2",
+  "out3": "Identity_3"
+ }
+}

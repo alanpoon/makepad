@@ -1,5 +1,5 @@
 [package]
-name = "makepad-example-pose-movenet"
+name = "makepad-example-hand-landmarks"
 version = "1.0.0"
 edition = "2021"
 
@@ -7,15 +7,10 @@ edition = "2021"
 makepad-widgets = { path = "../../widgets", version = "2.0.0" }
 makepad-ggml = { path = "../../libs/ggml" }
 makepad-nn-graph = { path = "../../libs/nn_graph" }
-makepad-micro-serde = { path = "../../libs/micro_serde", version = "1.0.0" }
 makepad-zune-core = { path = "../../libs/zune/zune-core" }
 makepad-zune-jpeg = { path = "../../libs/zune/zune-jpeg" }
 makepad-zune-png = { path = "../../libs/zune/zune-png" }
 
 [[test]]
-name = "upscale_semantics"
-path = "tests/upscale_semantics.rs"
-
-[[test]]
-name = "dump_heads"
-path = "tests/dump_heads.rs"
+name = "real_model"
+path = "tests/real_model.rs"

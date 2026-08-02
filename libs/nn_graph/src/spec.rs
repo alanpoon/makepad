@@ -6,6 +6,7 @@
 //! MobileNetV2/FPN arrangement that may not match the model you downloaded.
 
 use makepad_micro_serde::*;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, DeJson)]
 pub struct ModelSpec {
@@ -18,20 +19,10 @@ pub struct ModelSpec {
     pub input_scale: Option<f32>,
     pub input_bias: Option<f32>,
     pub layers: Vec<LayerSpec>,
-    pub outputs: OutputSpec,
-}
-
-/// The four MoveNet prediction heads, named by the tensor each produces.
-#[derive(Clone, Debug, DeJson)]
-pub struct OutputSpec {
-    /// Per-keypoint heatmap, 17 channels, already through sigmoid.
-    pub heatmap: String,
-    /// Person-center heatmap, 1 channel, already through sigmoid.
-    pub center: String,
-    /// Center-to-keypoint regression, 34 channels, (y, x) pairs in grid units.
-    pub regress: String,
-    /// Sub-pixel refinement at the keypoint cell, 34 channels, (y, x) pairs.
-    pub offset: String,
+    /// Role name -> the tensor that carries it, e.g. "heatmap" or
+    /// "landmarks". Roles are model-specific; the graph builder only needs
+    /// them to know which tensors to keep.
+    pub outputs: HashMap<String, String>,
 }
 
 #[derive(Clone, Debug, DeJson)]
@@ -60,6 +51,15 @@ pub struct LayerSpec {
     pub mode: Option<String>,
     /// concat only: dimension index in ggml order, 2 = channels.
     pub dim: Option<usize>,
+    /// pool only: `[width, height]` of the window.
+    pub window: Option<Vec<i32>>,
+    /// reshape only: target shape in the converter's NHWC order.
+    pub shape: Option<Vec<i64>>,
+    /// prelu only: the per-channel slope tensor.
+    pub slope: Option<String>,
+    /// pad only: `[before, after]` zero channels, for shortcut branches that
+    /// widen a tensor to match the trunk.
+    pub pad_channels: Option<Vec<i32>>,
 }
 
 impl LayerSpec {
@@ -101,9 +101,9 @@ fn pair(value: &Option<Vec<i32>>, default: i32) -> (i32, i32) {
 }
 
 impl ModelSpec {
-    pub fn from_json(text: &str) -> Result<Self, super::MoveNetError> {
+    pub fn from_json(text: &str) -> Result<Self, crate::NnError> {
         DeJson::deserialize_json(text)
-            .map_err(|e| super::MoveNetError::Spec(format!("model spec is not valid json: {e:?}")))
+            .map_err(|e| crate::NnError::Spec(format!("model spec is not valid json: {e:?}")))
     }
 }
 
@@ -137,6 +137,6 @@ mod tests {
         // absent in the json, so it falls back to no dilation
         assert_eq!(layer.dilation_xy(), (1, 1));
         assert_eq!(layer.activation.as_deref(), Some("relu6"));
-        assert_eq!(spec.outputs.heatmap, "h");
+        assert_eq!(spec.outputs["heatmap"], "h");
     }
 }

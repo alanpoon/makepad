@@ -1,0 +1,10 @@
+[package]
+name = "makepad-nn-graph"
+version = "0.1.0"
+edition = "2021"
+description = "Runs TFLite-derived model specs on makepad-ggml"
+license = "MIT"
+
+[dependencies]
+makepad-ggml = { path = "../ggml" }
+makepad-micro-serde = { path = "../micro_serde", version = "1.0.0" }

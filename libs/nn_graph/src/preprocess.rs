@@ -70,6 +70,13 @@ pub fn letterbox_rgb8(
     let mut out = vec![0.0f32; size * size * 3];
     let plane = size * size;
 
+    // When minifying, one destination pixel covers many source pixels, so
+    // point-sampling aliases badly (a 1200px photo into a 192px square throws
+    // away 97% of the pixels). Average over the source footprint instead --
+    // this is what PIL/TensorFlow do, and the model is trained on that.
+    let footprint = (1.0 / scale).max(1.0);
+    let half = (footprint * 0.5).floor() as i32;
+
     for my in 0..size {
         // center of the destination pixel, mapped back into source pixels
         let sy = (my as f32 + 0.5 - pad_y) / scale - 0.5;
@@ -78,7 +85,11 @@ pub fn letterbox_rgb8(
             if sx < -0.5 || sy < -0.5 || sx > width as f32 - 0.5 || sy > height as f32 - 0.5 {
                 continue; // padding stays at the neutral value
             }
-            let (r, g, b) = sample_bilinear(rgb, width, height, sx, sy);
+            let (r, g, b) = if half > 0 {
+                sample_box(rgb, width, height, sx, sy, half)
+            } else {
+                sample_bilinear(rgb, width, height, sx, sy)
+            };
             let dst = my * size + mx;
             out[dst] = r * scale_value + bias_value;
             out[plane + dst] = g * scale_value + bias_value;
@@ -95,6 +106,33 @@ pub fn letterbox_rgb8(
             pad_y,
         },
     ))
+}
+
+/// Mean of the source pixels covering one destination pixel.
+fn sample_box(
+    rgb: &[u8],
+    width: usize,
+    height: usize,
+    x: f32,
+    y: f32,
+    half: i32,
+) -> (f32, f32, f32) {
+    let cx = x.round() as i32;
+    let cy = y.round() as i32;
+    let (mut r, mut g, mut b) = (0.0f32, 0.0f32, 0.0f32);
+    let mut n = 0.0f32;
+    for dy in -half..=half {
+        let py = (cy + dy).clamp(0, height as i32 - 1) as usize;
+        for dx in -half..=half {
+            let px = (cx + dx).clamp(0, width as i32 - 1) as usize;
+            let i = (py * width + px) * 3;
+            r += rgb[i] as f32;
+            g += rgb[i + 1] as f32;
+            b += rgb[i + 2] as f32;
+            n += 1.0;
+        }
+    }
+    (r / n / 255.0, g / n / 255.0, b / n / 255.0)
 }
 
 fn sample_bilinear(rgb: &[u8], width: usize, height: usize, x: f32, y: f32) -> (f32, f32, f32) {

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::{ggml_pad, InitParams, ScaleMode, TriType, GGML_MEM_ALIGN, GGML_MROPE_SECTIONS};
+use crate::core::{
+    ggml_pad, InitParams, PoolOp, ScaleMode, TriType, GGML_MEM_ALIGN, GGML_MROPE_SECTIONS,
+};
 use crate::mmap::MappedRegion;
 use crate::op::{GluOp, Op, Prec, UnaryOp};
 use crate::tensor::{
@@ -1972,6 +1974,53 @@ impl Context {
             &[a, b],
         )?;
         self.tensor_mut(id).unwrap().set_op_param_i32(0, stride);
+        Ok(id)
+    }
+
+    /// 2d pooling over the spatial dims, `[W, H, C, N]` in, `[OW, OH, C, N]`
+    /// out. Padding is applied inside the kernel, not by materializing a
+    /// padded copy.
+    #[allow(clippy::too_many_arguments)]
+    pub fn pool_2d(
+        &mut self,
+        src: TensorId,
+        op: PoolOp,
+        k0: i32,
+        k1: i32,
+        s0: i32,
+        s1: i32,
+        p0: i32,
+        p1: i32,
+        usage: BufferUsage,
+    ) -> Result<TensorId, String> {
+        if k0 <= 0 || k1 <= 0 || s0 <= 0 || s1 <= 0 {
+            return Err(format!(
+                "pool_2d needs positive window and stride, got k=({k0},{k1}) s=({s0},{s1})"
+            ));
+        }
+        let tensor = self
+            .tensor(src)
+            .ok_or_else(|| format!("invalid tensor id {}", src))?;
+        let ow = (tensor.ne[0] + 2 * p0 as i64 - k0 as i64) / s0 as i64 + 1;
+        let oh = (tensor.ne[1] + 2 * p1 as i64 - k1 as i64) / s1 as i64 + 1;
+        if ow <= 0 || oh <= 0 {
+            return Err(format!("pool_2d output is empty: ow={ow} oh={oh}"));
+        }
+        let ne = [ow, oh, tensor.ne[2], tensor.ne[3]];
+        let layout = TensorLayout::for_ggml(tensor.desc.ty, &ne)?;
+        let id = self.new_op_tensor(
+            TensorDesc::new(tensor.desc.ty, layout, usage),
+            Op::Pool2d,
+            &[src],
+        )?;
+        let t = self.tensor_mut(id).unwrap();
+        t.set_op_param_i32(0, op as i32);
+        t.set_op_param_i32(1, k0);
+        t.set_op_param_i32(2, k1);
+        t.set_op_param_i32(3, s0);
+        t.set_op_param_i32(4, s1);
+        t.set_op_param_i32(5, p0);
+        t.set_op_param_i32(6, p1);
         Ok(id)
     }
 

@@ -755,6 +755,22 @@ struct KArgsConv2dDw {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+struct KArgsPool2d {
+    k0: i32,
+    k1: i32,
+    s0: i32,
+    s1: i32,
+    p0: i32,
+    p1: i32,
+    ih: i64,
+    iw: i64,
+    oh: i64,
+    ow: i64,
+    np: i64,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 struct KArgsIm2col {
     ofs0: u64,
     ofs1: u64,
@@ -1641,6 +1657,7 @@ fn execute_node(
         Op::Im2col => dispatch_im2col(runtime, ctx, compiled, tensor, node),
         Op::Conv2d => dispatch_conv_2d(runtime, ctx, compiled, tensor, node),
         Op::Conv2dDw => dispatch_conv_2d_dw(runtime, ctx, compiled, tensor, node),
+        Op::Pool2d => dispatch_pool_2d(runtime, ctx, compiled, tensor, node),
         Op::ConvTranspose2d => dispatch_conv_transpose_2d(runtime, ctx, compiled, tensor, node),
         Op::Upscale => dispatch_upscale(runtime, ctx, compiled, tensor, node),
         Op::TimestepEmbedding => dispatch_timestep_embedding(runtime, ctx, compiled, tensor, node),
@@ -3362,6 +3379,57 @@ fn dispatch_conv_2d_dw(
             height: 1,
             depth: 1,
         },
+    )
+}
+
+fn dispatch_pool_2d(
+    runtime: &MetalRuntime,
+    ctx: &Context,
+    compiled: &MetalCompiledGraph,
+    tensor: &Tensor,
+    node: &MetalCompiledNode,
+) -> Result<(), String> {
+    let stage = main_stage(node, tensor.op)?;
+    let src0_id = tensor_src(tensor, 0)?;
+    let src0 = ctx
+        .tensor(src0_id)
+        .ok_or_else(|| format!("pool_2d src0 {} is invalid", src0_id))?;
+    if !src0.is_contiguous() || !tensor.is_contiguous() {
+        return Err("pool_2d currently requires contiguous tensors".to_string());
+    }
+    if src0.desc.ty != TensorType::F32 || tensor.desc.ty != TensorType::F32 {
+        return Err("pool_2d currently requires f32 tensors".to_string());
+    }
+
+    let args = KArgsPool2d {
+        k0: tensor.op_param_i32(1),
+        k1: tensor.op_param_i32(2),
+        s0: tensor.op_param_i32(3),
+        s1: tensor.op_param_i32(4),
+        p0: tensor.op_param_i32(5),
+        p1: tensor.op_param_i32(6),
+        ih: src0.ne[1],
+        iw: src0.ne[0],
+        oh: tensor.ne[1],
+        ow: tensor.ne[0],
+        np: tensor.nelements() as i64,
+    };
+
+    let nth = std::cmp::min(256u64, stage.pipeline.max_threads_per_threadgroup).max(1);
+    let total = u64::try_from(tensor.nelements())
+        .map_err(|_| "pool_2d output size overflow".to_string())?;
+    let tg = ((total + nth - 1) / nth).max(1);
+
+    runtime.dispatch_compute(
+        &stage.pipeline,
+        bytes_of(&args),
+        &[
+            buffer_ref(compiled, 1, src0_id),
+            buffer_ref(compiled, 2, tensor.id),
+        ],
+        &[],
+        MetalSize { width: tg, height: 1, depth: 1 },
+        MetalSize { width: nth, height: 1, depth: 1 },
     )
 }
 

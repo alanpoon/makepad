@@ -7,7 +7,7 @@
 use makepad_micro_serde::*;
 use std::collections::HashMap;
 
-use super::MoveNetError;
+use crate::NnError;
 
 /// A tensor read out of a safetensors file, always widened to f32.
 #[derive(Clone, Debug)]
@@ -29,25 +29,25 @@ pub struct Weights {
 }
 
 impl Weights {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, MoveNetError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, NnError> {
         if bytes.len() < 8 {
-            return Err(MoveNetError::Weights("file is shorter than the header length field".into()));
+            return Err(NnError::Weights("file is shorter than the header length field".into()));
         }
         let header_len = u64::from_le_bytes(bytes[0..8].try_into().unwrap()) as usize;
         let header_end = 8usize
             .checked_add(header_len)
-            .ok_or_else(|| MoveNetError::Weights("header length overflows".into()))?;
+            .ok_or_else(|| NnError::Weights("header length overflows".into()))?;
         if header_end > bytes.len() {
-            return Err(MoveNetError::Weights(format!(
+            return Err(NnError::Weights(format!(
                 "header length {} runs past the end of the {} byte file",
                 header_len,
                 bytes.len()
             )));
         }
         let header_str = std::str::from_utf8(&bytes[8..header_end])
-            .map_err(|e| MoveNetError::Weights(format!("header is not utf8: {e}")))?;
+            .map_err(|e| NnError::Weights(format!("header is not utf8: {e}")))?;
         let header: HashMap<String, JsonValue> = DeJson::deserialize_json(header_str)
-            .map_err(|e| MoveNetError::Weights(format!("header is not valid json: {e:?}")))?;
+            .map_err(|e| NnError::Weights(format!("header is not valid json: {e:?}")))?;
 
         let data = &bytes[header_end..];
         let mut tensors = HashMap::new();
@@ -61,10 +61,10 @@ impl Weights {
         Ok(Self { tensors })
     }
 
-    pub fn get(&self, name: &str) -> Result<&WeightTensor, MoveNetError> {
+    pub fn get(&self, name: &str) -> Result<&WeightTensor, NnError> {
         self.tensors
             .get(name)
-            .ok_or_else(|| MoveNetError::MissingTensor(name.to_string()))
+            .ok_or_else(|| NnError::MissingTensor(name.to_string()))
     }
 
     pub fn contains(&self, name: &str) -> bool {
@@ -88,28 +88,28 @@ impl Weights {
     }
 }
 
-fn read_tensor(name: &str, value: &JsonValue, data: &[u8]) -> Result<WeightTensor, MoveNetError> {
+fn read_tensor(name: &str, value: &JsonValue, data: &[u8]) -> Result<WeightTensor, NnError> {
     let entry = value
         .object()
-        .ok_or_else(|| MoveNetError::Weights(format!("entry for {name} is not an object")))?;
+        .ok_or_else(|| NnError::Weights(format!("entry for {name} is not an object")))?;
 
     let dtype = entry
         .get("dtype")
         .and_then(|v| v.string())
-        .ok_or_else(|| MoveNetError::Weights(format!("{name} has no dtype")))?
+        .ok_or_else(|| NnError::Weights(format!("{name} has no dtype")))?
         .to_ascii_uppercase();
 
     let shape = json_usize_array(entry.get("shape"), name, "shape")?;
     let offsets = json_usize_array(entry.get("data_offsets"), name, "data_offsets")?;
     if offsets.len() != 2 {
-        return Err(MoveNetError::Weights(format!(
+        return Err(NnError::Weights(format!(
             "{name} data_offsets must hold exactly 2 values, got {}",
             offsets.len()
         )));
     }
     let (start, end) = (offsets[0], offsets[1]);
     if end < start || end > data.len() {
-        return Err(MoveNetError::Weights(format!(
+        return Err(NnError::Weights(format!(
             "{name} data_offsets [{start}, {end}] fall outside the {} byte data block",
             data.len()
         )));
@@ -120,7 +120,7 @@ fn read_tensor(name: &str, value: &JsonValue, data: &[u8]) -> Result<WeightTenso
     let values = match dtype.as_str() {
         "F32" => {
             if raw.len() != elements * 4 {
-                return Err(MoveNetError::Weights(format!(
+                return Err(NnError::Weights(format!(
                     "{name} holds {} bytes but shape {:?} needs {}",
                     raw.len(),
                     shape,
@@ -133,7 +133,7 @@ fn read_tensor(name: &str, value: &JsonValue, data: &[u8]) -> Result<WeightTenso
         }
         "F16" => {
             if raw.len() != elements * 2 {
-                return Err(MoveNetError::Weights(format!(
+                return Err(NnError::Weights(format!(
                     "{name} holds {} bytes but shape {:?} needs {}",
                     raw.len(),
                     shape,
@@ -145,7 +145,7 @@ fn read_tensor(name: &str, value: &JsonValue, data: &[u8]) -> Result<WeightTenso
                 .collect()
         }
         other => {
-            return Err(MoveNetError::Weights(format!(
+            return Err(NnError::Weights(format!(
                 "{name} has unsupported dtype {other}; convert the model to F32 or F16"
             )))
         }
@@ -161,11 +161,11 @@ fn json_usize_array(
     value: Option<&JsonValue>,
     name: &str,
     field: &str,
-) -> Result<Vec<usize>, MoveNetError> {
+) -> Result<Vec<usize>, NnError> {
     let JsonValue::Array(items) = value
-        .ok_or_else(|| MoveNetError::Weights(format!("{name} has no {field}")))?
+        .ok_or_else(|| NnError::Weights(format!("{name} has no {field}")))?
     else {
-        return Err(MoveNetError::Weights(format!(
+        return Err(NnError::Weights(format!(
             "{name} {field} is not an array"
         )));
     };
@@ -175,7 +175,7 @@ fn json_usize_array(
             JsonValue::U64(v) => Ok(*v as usize),
             JsonValue::I64(v) if *v >= 0 => Ok(*v as usize),
             JsonValue::F64(v) if *v >= 0.0 && v.fract() == 0.0 => Ok(*v as usize),
-            other => Err(MoveNetError::Weights(format!(
+            other => Err(NnError::Weights(format!(
                 "{name} {field} holds a non-integer value: {other:?}"
             ))),
         })
@@ -240,7 +240,7 @@ mod tests {
         let file = build_file(&[("a", vec![1], vec![1.0])]);
         let weights = Weights::from_bytes(&file).unwrap();
         let err = weights.get("b").unwrap_err();
-        assert!(matches!(err, MoveNetError::MissingTensor(name) if name == "b"));
+        assert!(matches!(err, NnError::MissingTensor(name) if name == "b"));
         assert_eq!(weights.names(), vec!["a"]);
     }
 
