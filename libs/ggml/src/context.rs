@@ -1884,6 +1884,65 @@ impl Context {
         Ok(id)
     }
 
+    /// Depthwise conv2d: every channel is convolved with its own filter, with
+    /// no reduction across channels. `a` is the kernel stack `[KW, KH, 1, C]`,
+    /// `b` the input `[IW, IH, C, N]`, and the result is `[OW, OH, C, N]`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn conv_2d_dw(
+        &mut self,
+        a: TensorId,
+        b: TensorId,
+        s0: i32,
+        s1: i32,
+        p0: i32,
+        p1: i32,
+        d0: i32,
+        d1: i32,
+        usage: BufferUsage,
+    ) -> Result<TensorId, String> {
+        let a_tensor = self
+            .tensor(a)
+            .ok_or_else(|| format!("invalid tensor id {}", a))?;
+        let b_tensor = self
+            .tensor(b)
+            .ok_or_else(|| format!("invalid tensor id {}", b))?;
+        if a_tensor.ne[2] != 1 {
+            return Err(format!(
+                "conv_2d_dw requires a single kernel plane per channel, got dim2 {}",
+                a_tensor.ne[2]
+            ));
+        }
+        if a_tensor.ne[3] != b_tensor.ne[2] {
+            return Err(format!(
+                "conv_2d_dw requires kernel channels {} to match input channels {}",
+                a_tensor.ne[3], b_tensor.ne[2]
+            ));
+        }
+        let ow = calc_conv_output_size(b_tensor.ne[0], a_tensor.ne[0], s0, p0, d0)?;
+        let oh = calc_conv_output_size(b_tensor.ne[1], a_tensor.ne[1], s1, p1, d1)?;
+        if ow <= 0 || oh <= 0 {
+            return Err(format!(
+                "conv_2d_dw output shape is non-positive: ow={} oh={}",
+                ow, oh
+            ));
+        }
+        let layout =
+            TensorLayout::for_ggml(TensorType::F32, &[ow, oh, b_tensor.ne[2], b_tensor.ne[3]])?;
+        let id = self.new_op_tensor(
+            TensorDesc::new(TensorType::F32, layout, usage),
+            Op::Conv2dDw,
+            &[a, b],
+        )?;
+        let tensor = self.tensor_mut(id).unwrap();
+        tensor.set_op_param_i32(0, s0);
+        tensor.set_op_param_i32(1, s1);
+        tensor.set_op_param_i32(2, p0);
+        tensor.set_op_param_i32(3, p1);
+        tensor.set_op_param_i32(4, d0);
+        tensor.set_op_param_i32(5, d1);
+        Ok(id)
+    }
+
     pub fn conv_transpose_2d_p0(
         &mut self,
         a: TensorId,

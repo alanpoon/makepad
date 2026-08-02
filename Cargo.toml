@@ -31,6 +31,7 @@ workspace.members = [
     "examples/counter",
     "examples/browser",
     "examples/camera",
+    "examples/pose_movenet",
     "examples/windows_blur",
     "examples/floating_panel",
     "examples/glass",

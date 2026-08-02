@@ -724,6 +724,37 @@ struct KArgsConv2d {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
+struct KArgsConv2dDw {
+    nb00: u64,
+    nb01: u64,
+    nb02: u64,
+    nb03: u64,
+    nb10: u64,
+    nb11: u64,
+    nb12: u64,
+    nb13: u64,
+    nb0: u64,
+    nb1: u64,
+    nb2: u64,
+    nb3: u64,
+    iw: i32,
+    ih: i32,
+    kw: i32,
+    kh: i32,
+    c: i32,
+    ow: i32,
+    oh: i32,
+    n: i32,
+    s0: i32,
+    s1: i32,
+    p0: i32,
+    p1: i32,
+    d0: i32,
+    d1: i32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
 struct KArgsIm2col {
     ofs0: u64,
     ofs1: u64,
@@ -1609,6 +1640,7 @@ fn execute_node(
         Op::GatedDeltaNet => dispatch_gated_delta_net(runtime, ctx, compiled, tensor, node),
         Op::Im2col => dispatch_im2col(runtime, ctx, compiled, tensor, node),
         Op::Conv2d => dispatch_conv_2d(runtime, ctx, compiled, tensor, node),
+        Op::Conv2dDw => dispatch_conv_2d_dw(runtime, ctx, compiled, tensor, node),
         Op::ConvTranspose2d => dispatch_conv_transpose_2d(runtime, ctx, compiled, tensor, node),
         Op::Upscale => dispatch_upscale(runtime, ctx, compiled, tensor, node),
         Op::TimestepEmbedding => dispatch_timestep_embedding(runtime, ctx, compiled, tensor, node),
@@ -3223,6 +3255,92 @@ fn dispatch_conv_2d(
     let nth = std::cmp::min(256u64, stage.pipeline.max_threads_per_threadgroup).max(1);
     let n_out = u64::try_from(tensor.nelements())
         .map_err(|_| "conv_2d output size overflow".to_string())?;
+    let tg = ((n_out + nth - 1) / nth).max(1);
+
+    runtime.dispatch_compute(
+        &stage.pipeline,
+        bytes_of(&args),
+        &[
+            buffer_ref(compiled, 1, src0_id),
+            buffer_ref(compiled, 2, src1_id),
+            buffer_ref(compiled, 3, tensor.id),
+        ],
+        &[],
+        MetalSize {
+            width: tg,
+            height: 1,
+            depth: 1,
+        },
+        MetalSize {
+            width: nth,
+            height: 1,
+            depth: 1,
+        },
+    )
+}
+
+fn dispatch_conv_2d_dw(
+    runtime: &MetalRuntime,
+    ctx: &Context,
+    compiled: &MetalCompiledGraph,
+    tensor: &Tensor,
+    node: &MetalCompiledNode,
+) -> Result<(), String> {
+    let stage = main_stage(node, tensor.op)?;
+    let src0_id = tensor_src(tensor, 0)?;
+    let src1_id = tensor_src(tensor, 1)?;
+    let src0 = ctx
+        .tensor(src0_id)
+        .ok_or_else(|| format!("conv_2d_dw src0 {} is invalid", src0_id))?;
+    let src1 = ctx
+        .tensor(src1_id)
+        .ok_or_else(|| format!("conv_2d_dw src1 {} is invalid", src1_id))?;
+    if !src0.is_contiguous() {
+        return Err("conv_2d_dw currently requires contiguous weights".to_string());
+    }
+    if src1.desc.ty != TensorType::F32 || tensor.desc.ty != TensorType::F32 {
+        return Err("conv_2d_dw currently requires f32 activations/output".to_string());
+    }
+    if !matches!(src0.desc.ty, TensorType::F16 | TensorType::F32) {
+        return Err(format!(
+            "conv_2d_dw currently requires f16/f32 weights, got {}",
+            src0.desc.ty.name()
+        ));
+    }
+
+    let args = KArgsConv2dDw {
+        nb00: u64::try_from(src0.nb[0]).map_err(|_| "conv_2d_dw nb00 exceeds u64".to_string())?,
+        nb01: u64::try_from(src0.nb[1]).map_err(|_| "conv_2d_dw nb01 exceeds u64".to_string())?,
+        nb02: u64::try_from(src0.nb[2]).map_err(|_| "conv_2d_dw nb02 exceeds u64".to_string())?,
+        nb03: u64::try_from(src0.nb[3]).map_err(|_| "conv_2d_dw nb03 exceeds u64".to_string())?,
+        nb10: u64::try_from(src1.nb[0]).map_err(|_| "conv_2d_dw nb10 exceeds u64".to_string())?,
+        nb11: u64::try_from(src1.nb[1]).map_err(|_| "conv_2d_dw nb11 exceeds u64".to_string())?,
+        nb12: u64::try_from(src1.nb[2]).map_err(|_| "conv_2d_dw nb12 exceeds u64".to_string())?,
+        nb13: u64::try_from(src1.nb[3]).map_err(|_| "conv_2d_dw nb13 exceeds u64".to_string())?,
+        nb0: u64::try_from(tensor.nb[0]).map_err(|_| "conv_2d_dw nb0 exceeds u64".to_string())?,
+        nb1: u64::try_from(tensor.nb[1]).map_err(|_| "conv_2d_dw nb1 exceeds u64".to_string())?,
+        nb2: u64::try_from(tensor.nb[2]).map_err(|_| "conv_2d_dw nb2 exceeds u64".to_string())?,
+        nb3: u64::try_from(tensor.nb[3]).map_err(|_| "conv_2d_dw nb3 exceeds u64".to_string())?,
+        iw: i32_dim(src1, 0)?,
+        ih: i32_dim(src1, 1)?,
+        kw: i32_dim(src0, 0)?,
+        kh: i32_dim(src0, 1)?,
+        // depthwise: channels live in dim3 of the weights, dim2 of the input
+        c: i32_dim(src1, 2)?,
+        ow: i32_dim(tensor, 0)?,
+        oh: i32_dim(tensor, 1)?,
+        n: i32_dim(tensor, 3)?,
+        s0: tensor.op_param_i32(0),
+        s1: tensor.op_param_i32(1),
+        p0: tensor.op_param_i32(2),
+        p1: tensor.op_param_i32(3),
+        d0: tensor.op_param_i32(4),
+        d1: tensor.op_param_i32(5),
+    };
+
+    let nth = std::cmp::min(256u64, stage.pipeline.max_threads_per_threadgroup).max(1);
+    let n_out = u64::try_from(tensor.nelements())
+        .map_err(|_| "conv_2d_dw output size overflow".to_string())?;
     let tg = ((n_out + nth - 1) / nth).max(1);
 
     runtime.dispatch_compute(
@@ -10374,6 +10492,157 @@ mod tests {
         run_gated_delta_net_metal_case(128, 2, 4, 4, 1, true);
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn run_conv_2d_dw_metal_case(
+        kw: i64,
+        kh: i64,
+        channels: i64,
+        iw: i64,
+        ih: i64,
+        batch: i64,
+        s0: i32,
+        s1: i32,
+        p0: i32,
+        p1: i32,
+        d0: i32,
+        d1: i32,
+        f16_weights: bool,
+    ) {
+        let runtime = match MetalRuntime::new() {
+            Ok(runtime) => runtime,
+            Err(_) => return,
+        };
+
+        let mut ctx = Context::new(InitParams {
+            mem_size: 1 << 22,
+            mem_buffer: None,
+            no_alloc: false,
+        });
+
+        let weight_ty = if f16_weights {
+            TensorType::F16
+        } else {
+            TensorType::F32
+        };
+        // depthwise weights are [KW, KH, 1, C]
+        let kernel = ctx
+            .new_tensor_4d(weight_ty, kw, kh, 1, channels, BufferUsage::Weights)
+            .unwrap();
+        let input = ctx
+            .new_tensor_4d(
+                TensorType::F32,
+                iw,
+                ih,
+                channels,
+                batch,
+                BufferUsage::Activations,
+            )
+            .unwrap();
+        let out = ctx
+            .conv_2d_dw(kernel, input, s0, s1, p0, p1, d0, d1, BufferUsage::Activations)
+            .unwrap();
+
+        let kernel_values = patterned_f32s((kw * kh * channels) as usize, -0.35, 0.03);
+        let input_values = patterned_f32s((iw * ih * channels * batch) as usize, -0.2, 0.05);
+        // round-trip f16 weights so the CPU reference sees the same values the
+        // kernel reads, and the comparison isolates the kernel from f16 error
+        let kernel_values = if f16_weights {
+            kernel_values
+                .iter()
+                .map(|v| crate::quant::f16_to_f32(crate::quant::f32_to_f16(*v)))
+                .collect::<Vec<f32>>()
+        } else {
+            kernel_values
+        };
+
+        if f16_weights {
+            let bytes: Vec<u8> = kernel_values
+                .iter()
+                .flat_map(|v| crate::quant::f32_to_f16(*v).to_le_bytes())
+                .collect();
+            ctx.write_tensor_data(kernel, &bytes).unwrap();
+        } else {
+            ctx.write_tensor_data(kernel, &f32s_to_bytes(&kernel_values))
+                .unwrap();
+        }
+        ctx.write_tensor_data(input, &f32s_to_bytes(&input_values))
+            .unwrap();
+
+        let mut graph = Graph::new();
+        graph.build_forward_expand(&ctx, out).unwrap();
+
+        let prepared = prepare_graph(&ctx, &graph, runtime.features()).unwrap();
+        let session = MetalGraphSession::from_runtime(
+            runtime,
+            &ctx,
+            &prepared,
+            BufferStorageMode::Shared,
+            BufferStorageMode::Shared,
+        )
+        .unwrap();
+
+        let execution = session.execute(&ctx, &[], &[out]).unwrap();
+        let actual = bytes_to_f32s(execution.outputs.get(&out).unwrap());
+        let expected = cpu_conv_2d_dw_f32(
+            &kernel_values,
+            &input_values,
+            kw as usize,
+            kh as usize,
+            channels as usize,
+            iw as usize,
+            ih as usize,
+            batch as usize,
+            s0 as usize,
+            s1 as usize,
+            p0 as usize,
+            p1 as usize,
+            d0 as usize,
+            d1 as usize,
+        );
+
+        assert_eq!(actual.len(), expected.len());
+        for (a, e) in actual.iter().zip(expected.iter()) {
+            // relative: the GPU accumulates in a different order than the
+            // reference, so large sums drift past a fixed epsilon
+            assert!(
+                (a - e).abs() <= 1.0e-5 * e.abs().max(1.0),
+                "conv_2d_dw output mismatch: actual={} expected={} \
+                 (kw={} kh={} c={} iw={} ih={} n={} s=({},{}) p=({},{}) d=({},{}) f16={})",
+                a,
+                e,
+                kw,
+                kh,
+                channels,
+                iw,
+                ih,
+                batch,
+                s0,
+                s1,
+                p0,
+                p1,
+                d0,
+                d1,
+                f16_weights,
+            );
+        }
+    }
+
+    #[test]
+    fn executes_conv_2d_dw_graph_on_metal_when_available() {
+        // 3x3 same-padding, the shape every MobileNet-style block uses
+        run_conv_2d_dw_metal_case(3, 3, 4, 7, 5, 1, 1, 1, 1, 1, 1, 1, false);
+        // strided downsample
+        run_conv_2d_dw_metal_case(3, 3, 3, 8, 8, 1, 2, 2, 1, 1, 1, 1, false);
+        // no padding, batched
+        run_conv_2d_dw_metal_case(3, 3, 2, 6, 6, 2, 1, 1, 0, 0, 1, 1, false);
+        // dilated, asymmetric kernel and strides
+        run_conv_2d_dw_metal_case(3, 2, 2, 9, 7, 1, 2, 1, 2, 1, 2, 2, false);
+        // 5x5 depthwise
+        run_conv_2d_dw_metal_case(5, 5, 3, 9, 9, 1, 1, 1, 2, 2, 1, 1, false);
+        // f16 weights
+        run_conv_2d_dw_metal_case(3, 3, 4, 7, 5, 1, 1, 1, 1, 1, 1, 1, true);
+    }
+
     #[test]
     fn executes_conv_2d_graph_on_metal_when_available() {
         let runtime = match MetalRuntime::new() {
@@ -11033,6 +11302,61 @@ mod tests {
                             }
                         }
                         let out_idx = (((n * oc + out_channel) * oh + oy) * ow) + ox;
+                        out[out_idx] = acc;
+                    }
+                }
+            }
+        }
+
+        out
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn cpu_conv_2d_dw_f32(
+        weights: &[f32],
+        input: &[f32],
+        kw: usize,
+        kh: usize,
+        channels: usize,
+        iw: usize,
+        ih: usize,
+        batch: usize,
+        stride_x: usize,
+        stride_y: usize,
+        pad_x: usize,
+        pad_y: usize,
+        dil_x: usize,
+        dil_y: usize,
+    ) -> Vec<f32> {
+        let ow = (iw + 2 * pad_x - dil_x * (kw - 1) - 1) / stride_x + 1;
+        let oh = (ih + 2 * pad_y - dil_y * (kh - 1) - 1) / stride_y + 1;
+        let mut out = vec![0.0f32; ow * oh * channels * batch];
+
+        for n in 0..batch {
+            for channel in 0..channels {
+                for oy in 0..oh {
+                    for ox in 0..ow {
+                        let mut acc = 0.0f32;
+                        let base_x = ox * stride_x;
+                        let base_y = oy * stride_y;
+                        for ky in 0..kh {
+                            let iy = base_y + ky * dil_y;
+                            if iy < pad_y || iy >= ih + pad_y {
+                                continue;
+                            }
+                            let iy = iy - pad_y;
+                            for kx in 0..kw {
+                                let ix = base_x + kx * dil_x;
+                                if ix < pad_x || ix >= iw + pad_x {
+                                    continue;
+                                }
+                                let ix = ix - pad_x;
+                                let weight_idx = ((channel * kh + ky) * kw) + kx;
+                                let input_idx = (((n * channels + channel) * ih + iy) * iw) + ix;
+                                acc += weights[weight_idx] * input[input_idx];
+                            }
+                        }
+                        let out_idx = (((n * channels + channel) * oh + oy) * ow) + ox;
                         out[out_idx] = acc;
                     }
                 }

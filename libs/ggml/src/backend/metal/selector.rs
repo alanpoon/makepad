@@ -194,6 +194,7 @@ pub fn build_program(
         Op::Rope => program_rope(tensors, op),
         Op::Im2col => program_im2col(op),
         Op::Conv2d => program_conv2d(tensors, op),
+        Op::Conv2dDw => program_conv2d_dw(tensors, op),
         Op::ConvTranspose1d => program_conv_transpose_1d(tensors, op),
         Op::ConvTranspose2d => program_conv_transpose_2d(tensors, op),
         Op::Conv3d => program_conv3d(tensors, op),
@@ -1090,6 +1091,21 @@ fn program_conv2d(tensors: &[Tensor], op: &Tensor) -> Result<MetalOpProgram, Str
     let src1 = src(tensors, op, 1)?;
     let base = format!(
         "kernel_conv_2d_{}_{}",
+        src0.desc.ty.name(),
+        src1.desc.ty.name()
+    );
+    Ok(program_with_stage(stage_simple(
+        MetalStageKind::Main,
+        &base,
+        &base,
+    )))
+}
+
+fn program_conv2d_dw(tensors: &[Tensor], op: &Tensor) -> Result<MetalOpProgram, String> {
+    let src0 = src(tensors, op, 0)?;
+    let src1 = src(tensors, op, 1)?;
+    let base = format!(
+        "kernel_conv_2d_dw_{}_{}",
         src0.desc.ty.name(),
         src1.desc.ty.name()
     );
