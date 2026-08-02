@@ -1076,6 +1076,42 @@ fn build_r_class(
     Ok(())
 }
 
+/// App-provided extra Android artifacts, discovered under `<app>/android/`:
+///   * `android/libs/*.jar`     — added to the javac classpath and DEXed in
+///   * `android/java/**/*.java`  — compiled and DEXed in
+///   * `android/jni/<abi>/*.so`  — bundled into `lib/<abi>/`
+///
+/// This lets a single app pull in a prebuilt Android library the stock makepad
+/// build knows nothing about (e.g. MediaPipe). Everything is opt-in: if the dirs
+/// are absent, nothing changes for other apps.
+fn app_android_dir() -> PathBuf {
+    std::env::current_dir().unwrap().join("android")
+}
+
+fn list_files_ext(dir: &Path, ext: &str) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(rd) = fs::read_dir(dir) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                out.extend(list_files_ext(&p, ext));
+            } else if p.extension().and_then(|x| x.to_str()) == Some(ext) {
+                out.push(p);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+fn app_extra_jars() -> Vec<PathBuf> {
+    list_files_ext(&app_android_dir().join("libs"), "jar")
+}
+
+fn app_extra_java() -> Vec<PathBuf> {
+    list_files_ext(&app_android_dir().join("java"), "java")
+}
+
 fn compile_java(
     sdk_dir: &Path,
     build_paths: &BuildPaths,
@@ -1094,7 +1130,7 @@ fn compile_java(
     let makepad_java_classes_dir = &cargo_manifest_dir
         .join("src/android/java/")
         .join(makepad_package_path);
-    let java_sources = vec![
+    let mut java_sources = vec![
         r_class_path.clone(),
         makepad_java_classes_dir.join("MakepadNative.java"),
         makepad_java_classes_dir.join("MakepadActivity.java"),
@@ -1110,12 +1146,22 @@ fn compile_java(
         build_paths.java_file.clone(),
         build_paths.xr_file.clone(),
     ];
+    // App-provided Java sources (e.g. a MediaPipe wrapper) compile alongside.
+    java_sources.extend(app_extra_java());
+    // App-provided prebuilt jars go on the classpath so those sources resolve.
+    let extra_jars = app_extra_jars();
 
     let mut hasher = DefaultHasher::new();
     for source in &java_sources {
         source.to_string_lossy().hash(&mut hasher);
         fs::read(source)
             .map_err(|e| format!("failed to read Java source {:?}: {e}", source))?
+            .hash(&mut hasher);
+    }
+    for jar in &extra_jars {
+        jar.to_string_lossy().hash(&mut hasher);
+        fs::read(jar)
+            .map_err(|e| format!("failed to read extra jar {:?}: {e}", jar))?
             .hash(&mut hasher);
     }
     let java_inputs_hash = format!("{:016x}", hasher.finish());
@@ -1156,6 +1202,12 @@ fn compile_java(
     let android_jar = android_jar_path(sdk_dir, urls);
     let _ = rmdir(&build_paths.java_out_dir);
     mkdir(&build_paths.java_out_dir)?;
+    // classpath = android.jar plus any app-provided jars (':' separated on host).
+    let mut classpath = android_jar.to_str().unwrap().to_string();
+    for jar in &extra_jars {
+        classpath.push(':');
+        classpath.push_str(jar.to_str().unwrap());
+    }
     let mut javac_args = vec![
         "-source",
         "1.8",
@@ -1163,7 +1215,7 @@ fn compile_java(
         "1.8",
         "-Xlint:-options",
         "-classpath",
-        android_jar.to_str().unwrap(),
+        &classpath,
         "-Xlint:deprecation",
         "-d",
         build_paths.java_out_dir.to_str().unwrap(),
@@ -1211,11 +1263,23 @@ fn build_dex(
 
     let d8_jar = d8_jar_path(sdk_dir, urls);
     let android_jar = android_jar_path(sdk_dir, urls);
+    let extra_jars = app_extra_jars();
 
+    // `--min-api 24` does two things:
+    //   * native multidex (>=21): app + bundled libraries (e.g. MediaPipe pulls
+    //     in guava/protobuf) can exceed the 64K-method single-dex ceiling, and
+    //     D8 then emits classes2.dex, classes3.dex, ...
+    //   * no `java.util.stream` / static-interface desugaring: those APIs are
+    //     native on API 24+, so D8 leaves them as direct platform calls instead
+    //     of emitting `Stream$-CC`-style companions it can't back for a platform
+    //     class (which MediaPipe would hit at <clinit> -> NoClassDefFoundError).
+    // 24 matches MediaPipe's own minSdk; makepad's floor is already >= that.
     let mut args: Vec<&str> = vec![
         "-cp",
         d8_jar.to_str().unwrap(),
         "com.android.tools.r8.D8",
+        "--min-api",
+        "24",
         "--classpath",
         android_jar.to_str().unwrap(),
         "--output",
@@ -1224,6 +1288,10 @@ fn build_dex(
 
     for class_file in &class_files {
         args.push(class_file.to_str().unwrap());
+    }
+    // App-provided prebuilt jars are DEXed straight in (D8 accepts .jar inputs).
+    for jar in &extra_jars {
+        args.push(jar.to_str().unwrap());
     }
 
     shell_env_cap(
@@ -1560,6 +1628,39 @@ fn find_rustup_shared_lib(android_target: &AndroidTarget, lib_name: &str) -> Opt
         }
     }
     None
+}
+
+/// Bundle app-provided prebuilt native libraries from `<app>/android/jni/<abi>/`
+/// into the APK's `lib/<abi>/`. Used for e.g. MediaPipe's
+/// `libmediapipe_tasks_jni.so`, which the Java side loads via System.loadLibrary.
+fn add_app_native_libs(
+    sdk_dir: &Path,
+    build_paths: &BuildPaths,
+    android_targets: &[AndroidTarget],
+    urls: &AndroidSDKUrls,
+) -> Result<(), String> {
+    for target in android_targets {
+        let abi = target.abi_identifier();
+        let src_dir = app_android_dir().join("jni").join(abi);
+        for so in list_files_ext(&src_dir, "so") {
+            let name = so.file_name().unwrap().to_str().unwrap().to_string();
+            let binary_path = format!("lib/{abi}/{name}");
+            let dst = build_paths.out_dir.join(&binary_path);
+            cp(&so, &dst, false)?;
+            shell_env_cap(
+                &[],
+                &build_paths.out_dir,
+                aapt_path(sdk_dir, urls).to_str().unwrap(),
+                &[
+                    "add",
+                    build_paths.dst_unaligned_apk.to_str().unwrap(),
+                    &binary_path,
+                ],
+            )?;
+            println!("  Bundled app native lib: {name} (for {abi})");
+        }
+    }
+    Ok(())
 }
 
 fn add_rust_library(
@@ -2745,6 +2846,7 @@ pub fn build(
         variant,
         urls,
     )?;
+    add_app_native_libs(sdk_dir, &build_paths, android_targets, urls)?;
     add_resources(
         sdk_dir,
         build_crate,
